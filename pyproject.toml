@@ -22,6 +22,8 @@ dependencies = [
     "structlog>=23.0.0",
     "customtkinter>=5.2.0",
     "psutil>=5.9.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
 ]
 
 [project.optional-dependencies]
@@ -36,3 +38,4 @@ packages = ["src"]
 
 [project.scripts]
 windows-pc-controller-mcp = "src.server:main"
+mcp-dashboard = "src.dashboard:main"
