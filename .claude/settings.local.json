@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(where python:*)",
+      "Bash(cd:*)",
+      "mcp__plugin_serena_serena__read_file",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python:*)",
+      "Bash(claude mcp:*)",
+      "mcp__windows-pc-controller-mcp__mouse_position",
+      "mcp__windows-pc-controller-mcp__keyboard_hotkey",
+      "Bash(.venv/Scripts/pip uninstall:*)",
+      "WebSearch",
+      "WebFetch(domain:daisyui.com)",
+      "WebFetch(domain:shoelace.style)",
+      "mcp__windows-pc-controller-mcp__capture_screenshot",
+      "mcp__windows-pc-controller-mcp__focus_window",
+      "mcp__windows-pc-controller-mcp__list_windows",
+      "mcp__windows-pc-controller-mcp__mouse_click",
+      "Bash(start:*)",
+      "mcp__windows-pc-controller-mcp__mouse_scroll",
+      "mcp__windows-pc-controller-mcp__mouse_move",
+      "mcp__windows-pc-controller-mcp__keyboard_press",
+      "mcp__windows-pc-controller-mcp__keyboard_type"
+    ]
+  },
+  "outputStyle": "Explanatory"
+}
