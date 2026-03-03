@@ -99,6 +99,9 @@ def find_on_screen(
         tmpl_img = np.array(Image.open(io.BytesIO(tmpl_bytes)))
         tmpl_bgr = cv2.cvtColor(tmpl_img, cv2.COLOR_RGB2BGR)
 
+        if tmpl_bgr.shape[0] > screen_bgr.shape[0] or tmpl_bgr.shape[1] > screen_bgr.shape[1]:
+            return {"success": False, "error": "Template larger than screenshot", "suggestion": "Use a smaller template image"}
+
         matches = find_template(screen_bgr, tmpl_bgr, threshold)
         return {"success": True, "matches": matches, "count": len(matches)}
     except Exception as e:

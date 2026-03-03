@@ -49,6 +49,7 @@ def mouse_click(
     try:
         if x is not None and y is not None:
             _mouse.position = (x, y)
+            time.sleep(0.01)
 
         btn = _BUTTON_MAP.get(button, Button.left)
         _mouse.click(btn, clicks)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import win32con
 import win32gui
 import win32process
 import psutil
@@ -47,21 +48,26 @@ def get_active_window_title() -> str:
 
 def focus_window_by_title(title_substring: str) -> bool:
     """Bring a window matching the title substring to the foreground."""
-    for w in enumerate_windows():
-        if title_substring.lower() in w["title"].lower():
-            hwnd = w["hwnd"]
-            win32gui.ShowWindow(hwnd, 9)  # SW_RESTORE
-            win32gui.SetForegroundWindow(hwnd)
-            return True
-    return False
+    try:
+        for w in enumerate_windows():
+            if title_substring.lower() in w["title"].lower():
+                hwnd = w["hwnd"]
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                win32gui.SetForegroundWindow(hwnd)
+                return True
+        return False
+    except Exception:
+        return False
 
 
 def close_window_by_title(title_substring: str) -> bool:
     """Send WM_CLOSE to a window matching the title substring."""
-    import win32con
-    for w in enumerate_windows():
-        if title_substring.lower() in w["title"].lower():
-            hwnd = w["hwnd"]
-            win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
-            return True
-    return False
+    try:
+        for w in enumerate_windows():
+            if title_substring.lower() in w["title"].lower():
+                hwnd = w["hwnd"]
+                win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+                return True
+        return False
+    except Exception:
+        return False

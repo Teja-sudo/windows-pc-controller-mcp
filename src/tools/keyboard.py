@@ -64,6 +64,8 @@ def keyboard_hotkey(keys: str) -> dict[str, Any]:
     """Press a key combination like 'ctrl+c' or 'alt+tab'."""
     try:
         parts = [k.strip() for k in keys.split("+")]
+        if not parts or any(not p for p in parts):
+            return {"success": False, "error": "Invalid hotkey format", "suggestion": "Use format: 'ctrl+c' or 'alt+tab'"}
         parsed = [_parse_key(k) for k in parts]
 
         for key in parsed[:-1]:
