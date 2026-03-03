@@ -358,6 +358,131 @@
       color: var(--accent);
     }
 
+    /* ── Security Tab ─────────────────────────────────────── */
+    .security-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.25rem;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .setting-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .setting-row sl-switch {
+      --width: 36px;
+      --height: 20px;
+      --thumb-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .setting-row sl-range {
+      flex: 1;
+      --tooltip-offset: 4;
+    }
+
+    .setting-label {
+      flex: 1;
+      font-size: 0.875rem;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .setting-value {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      min-width: 3rem;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .setting-info-icon {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.15s ease;
+    }
+
+    .setting-info-icon:hover {
+      color: var(--accent);
+    }
+
+    .chip-editor {
+      padding: 0.375rem 0;
+    }
+
+    .chip-editor .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      margin-bottom: 0.5rem;
+      min-height: 1.5rem;
+    }
+
+    .chip-editor .chips:empty {
+      margin-bottom: 0;
+    }
+
+    .chip-editor .chips sl-tag::part(base) {
+      background: var(--border);
+      border: none;
+      color: var(--text);
+      font-size: 0.8125rem;
+    }
+
+    .chip-editor .chips sl-tag::part(remove-button) {
+      color: var(--text-muted);
+    }
+
+    .chip-editor .chips sl-tag::part(remove-button):hover {
+      color: var(--danger);
+    }
+
+    .chip-editor sl-input {
+      max-width: 300px;
+    }
+
+    .chip-editor sl-input::part(base) {
+      background: transparent;
+      border-color: var(--border);
+    }
+
+    .chip-editor sl-input::part(base):focus-within {
+      border-color: var(--accent);
+    }
+
+    .setting-row-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      padding: 0.5rem 0.25rem;
+    }
+
+    .setting-row-block .setting-row-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .radio-group-row sl-radio-group {
+      margin-top: 0.25rem;
+    }
+
+    .radio-group-row sl-radio-button::part(button) {
+      font-size: 0.8125rem;
+    }
+
     /* ── Responsive ────────────────────────────────────────── */
     @media (max-width: 768px) {
       .container {
@@ -430,9 +555,8 @@
 
           <!-- ── Tab 2: Security ───────────────────────────── -->
           <sl-tab-panel name="security">
-            <!-- Security tab content (Task 6) -->
-            <div class="tab-placeholder">
-              Security settings will appear here.
+            <div class="security-container" id="securityContainer">
+              <!-- Populated by renderSecurityTab() -->
             </div>
           </sl-tab-panel>
 
@@ -833,9 +957,475 @@
       }
     });
 
-    // ── Listen for config-loaded ───────────────────────────
+    // ── Listen for config-loaded (Tools) ───────────────────
     window.addEventListener('config-loaded', () => {
       renderToolsTab();
+    });
+
+    // ── Security Tab ─────────────────────────────────────
+
+    /**
+     * Create an info icon element with a data-help attribute.
+     * @param {string} helpPath - The config path for help tooltip
+     * @returns {HTMLElement}
+     */
+    function createInfoIcon(helpPath) {
+      const icon = document.createElement('sl-icon');
+      icon.className = 'setting-info-icon';
+      icon.name = 'info-circle';
+      icon.dataset.help = helpPath;
+      return icon;
+    }
+
+    /**
+     * Create a setting row with a switch toggle.
+     * @param {string} label - Display label
+     * @param {string} helpPath - Config path for help
+     * @param {boolean} checked - Initial state
+     * @param {function} onChange - Callback on toggle
+     * @returns {HTMLElement}
+     */
+    function createSwitchRow(label, helpPath, checked, onChange) {
+      const row = document.createElement('div');
+      row.className = 'setting-row';
+
+      const toggle = document.createElement('sl-switch');
+      toggle.checked = checked;
+      toggle.addEventListener('sl-change', () => {
+        onChange(toggle.checked);
+        markDirty();
+      });
+
+      const labelEl = document.createElement('span');
+      labelEl.className = 'setting-label';
+      labelEl.textContent = label;
+
+      row.appendChild(toggle);
+      row.appendChild(labelEl);
+      row.appendChild(createInfoIcon(helpPath));
+      return row;
+    }
+
+    /**
+     * Create a setting row with a range slider.
+     * @param {string} label - Display label
+     * @param {string} helpPath - Config path for help
+     * @param {number} value - Current value
+     * @param {number} min - Minimum value
+     * @param {number} max - Maximum value
+     * @param {number} step - Step increment
+     * @param {string} suffix - Unit suffix (e.g. "s", "chars")
+     * @param {function} onChange - Callback with new value
+     * @returns {HTMLElement}
+     */
+    function createRangeRow(label, helpPath, value, min, max, step, suffix, onChange) {
+      const row = document.createElement('div');
+      row.className = 'setting-row';
+
+      const labelEl = document.createElement('span');
+      labelEl.className = 'setting-label';
+      labelEl.textContent = label;
+
+      const range = document.createElement('sl-range');
+      range.min = min;
+      range.max = max;
+      range.step = step;
+      range.value = value;
+      range.tooltip = 'top';
+
+      const valueDisplay = document.createElement('span');
+      valueDisplay.className = 'setting-value';
+      valueDisplay.textContent = `${value}${suffix}`;
+
+      range.addEventListener('sl-input', () => {
+        valueDisplay.textContent = `${range.value}${suffix}`;
+      });
+      range.addEventListener('sl-change', () => {
+        valueDisplay.textContent = `${range.value}${suffix}`;
+        onChange(range.value);
+        markDirty();
+      });
+
+      row.appendChild(labelEl);
+      row.appendChild(range);
+      row.appendChild(valueDisplay);
+      row.appendChild(createInfoIcon(helpPath));
+      return row;
+    }
+
+    /**
+     * Create a reusable chip editor for list-type config values.
+     * @param {string} configPath - Dot-separated config path (e.g. "security.masking.blocked_apps")
+     * @param {string[]} items - Current list of items
+     * @param {function} onUpdate - Called with updated array on add/remove
+     * @returns {HTMLElement}
+     */
+    function createChipEditor(configPath, items, onUpdate) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'chip-editor';
+      wrapper.dataset.path = configPath;
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'chips';
+
+      // Track current items
+      let currentItems = [...items];
+
+      function renderChips() {
+        chipsContainer.replaceChildren();
+        for (const item of currentItems) {
+          const tag = document.createElement('sl-tag');
+          tag.variant = 'neutral';
+          tag.size = 'medium';
+          tag.removable = true;
+          tag.textContent = item;
+          tag.addEventListener('sl-remove', () => {
+            currentItems = currentItems.filter(i => i !== item);
+            renderChips();
+            onUpdate(currentItems);
+            markDirty();
+          });
+          chipsContainer.appendChild(tag);
+        }
+      }
+
+      renderChips();
+
+      const input = document.createElement('sl-input');
+      input.placeholder = 'Add item...';
+      input.size = 'small';
+
+      const addIcon = document.createElement('sl-icon');
+      addIcon.name = 'plus-circle';
+      addIcon.slot = 'suffix';
+      addIcon.style.cursor = 'pointer';
+      input.appendChild(addIcon);
+
+      function addItem() {
+        const val = input.value.trim();
+        if (val && !currentItems.includes(val)) {
+          currentItems.push(val);
+          renderChips();
+          onUpdate(currentItems);
+          markDirty();
+        }
+        input.value = '';
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addItem();
+        }
+      });
+
+      addIcon.addEventListener('click', addItem);
+
+      wrapper.appendChild(chipsContainer);
+      wrapper.appendChild(input);
+      return wrapper;
+    }
+
+    /**
+     * Create a card with title and content.
+     * @param {string} title - Card title
+     * @param {string} iconName - Shoelace icon name
+     * @returns {{ card: HTMLElement, body: HTMLElement }}
+     */
+    function createSecurityCard(title, iconName) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+
+      const titleEl = document.createElement('span');
+      titleEl.className = 'card-title';
+
+      const titleIcon = document.createElement('sl-icon');
+      titleIcon.name = iconName;
+      titleIcon.style.marginRight = '0.5rem';
+      titleIcon.style.color = 'var(--accent)';
+      titleEl.appendChild(titleIcon);
+
+      const titleText = document.createTextNode(title);
+      titleEl.appendChild(titleText);
+
+      header.appendChild(titleEl);
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      card.appendChild(header);
+      card.appendChild(body);
+      return { card, body };
+    }
+
+    /**
+     * Render the entire Security tab from state.config.security.
+     */
+    function renderSecurityTab() {
+      const container = document.getElementById('securityContainer');
+      container.replaceChildren();
+
+      const sec = state.config?.security;
+      if (!sec) return;
+
+      // ── Card 1: General Security ──────────────────────
+      {
+        const { card, body } = createSecurityCard('General Security', 'shield-check');
+
+        body.appendChild(createSwitchRow(
+          'Security Enabled (master toggle)',
+          'security.enabled',
+          sec.enabled,
+          (val) => { state.config.security.enabled = val; }
+        ));
+
+        body.appendChild(createSwitchRow(
+          'Confirm Dangerous Actions',
+          'security.confirm_dangerous_actions',
+          sec.confirm_dangerous_actions,
+          (val) => { state.config.security.confirm_dangerous_actions = val; }
+        ));
+
+        body.appendChild(createRangeRow(
+          'Confirmation Timeout',
+          'security.confirmation_timeout_seconds',
+          sec.confirmation_timeout_seconds,
+          10, 300, 5, 's',
+          (val) => { state.config.security.confirmation_timeout_seconds = val; }
+        ));
+
+        body.appendChild(createSwitchRow(
+          'Audit Logging',
+          'security.audit_logging',
+          sec.audit_logging,
+          (val) => { state.config.security.audit_logging = val; }
+        ));
+
+        container.appendChild(card);
+      }
+
+      // ── Card 2: Screen Masking ────────────────────────
+      {
+        const { card, body } = createSecurityCard('Screen Masking', 'eye-slash');
+        const masking = sec.masking || {};
+
+        body.appendChild(createSwitchRow(
+          'Masking Enabled',
+          'security.masking.enabled',
+          masking.enabled ?? true,
+          (val) => { state.config.security.masking.enabled = val; }
+        ));
+
+        body.appendChild(createSwitchRow(
+          'Mask Password Fields',
+          'security.masking.mask_password_fields',
+          masking.mask_password_fields ?? true,
+          (val) => { state.config.security.masking.mask_password_fields = val; }
+        ));
+
+        // Blocked apps chip editor
+        const blockedAppsBlock = document.createElement('div');
+        blockedAppsBlock.className = 'setting-row-block';
+        const blockedAppsHeader = document.createElement('div');
+        blockedAppsHeader.className = 'setting-row-header';
+        const blockedAppsLabel = document.createElement('span');
+        blockedAppsLabel.className = 'setting-label';
+        blockedAppsLabel.textContent = 'Blocked Apps';
+        blockedAppsHeader.appendChild(blockedAppsLabel);
+        blockedAppsHeader.appendChild(createInfoIcon('security.masking.blocked_apps'));
+        blockedAppsBlock.appendChild(blockedAppsHeader);
+        blockedAppsBlock.appendChild(createChipEditor(
+          'security.masking.blocked_apps',
+          masking.blocked_apps || [],
+          (items) => { state.config.security.masking.blocked_apps = items; }
+        ));
+        body.appendChild(blockedAppsBlock);
+
+        container.appendChild(card);
+      }
+
+      // ── Card 3: Keyboard Security ─────────────────────
+      {
+        const { card, body } = createSecurityCard('Keyboard Security', 'keyboard');
+        const kb = sec.keyboard || {};
+
+        // Blocked hotkeys chip editor
+        const hotkeyBlock = document.createElement('div');
+        hotkeyBlock.className = 'setting-row-block';
+        const hotkeyHeader = document.createElement('div');
+        hotkeyHeader.className = 'setting-row-header';
+        const hotkeyLabel = document.createElement('span');
+        hotkeyLabel.className = 'setting-label';
+        hotkeyLabel.textContent = 'Blocked Hotkeys';
+        hotkeyHeader.appendChild(hotkeyLabel);
+        hotkeyHeader.appendChild(createInfoIcon('security.keyboard.blocked_hotkeys'));
+        hotkeyBlock.appendChild(hotkeyHeader);
+        hotkeyBlock.appendChild(createChipEditor(
+          'security.keyboard.blocked_hotkeys',
+          kb.blocked_hotkeys || [],
+          (items) => { state.config.security.keyboard.blocked_hotkeys = items; }
+        ));
+        body.appendChild(hotkeyBlock);
+
+        body.appendChild(createRangeRow(
+          'Max Type Length',
+          'security.keyboard.max_type_length',
+          kb.max_type_length ?? 500,
+          50, 2000, 50, ' chars',
+          (val) => { state.config.security.keyboard.max_type_length = val; }
+        ));
+
+        body.appendChild(createSwitchRow(
+          'Block Password Fields',
+          'security.keyboard.block_password_fields',
+          kb.block_password_fields ?? true,
+          (val) => { state.config.security.keyboard.block_password_fields = val; }
+        ));
+
+        container.appendChild(card);
+      }
+
+      // ── Card 4: App Execution ─────────────────────────
+      {
+        const { card, body } = createSecurityCard('App Execution', 'terminal');
+        const apps = sec.apps || {};
+
+        // Mode radio group
+        const modeBlock = document.createElement('div');
+        modeBlock.className = 'setting-row radio-group-row';
+
+        const modeLabel = document.createElement('span');
+        modeLabel.className = 'setting-label';
+        modeLabel.textContent = 'Execution Mode';
+
+        const radioGroup = document.createElement('sl-radio-group');
+        radioGroup.value = apps.mode || 'allowlist';
+        radioGroup.dataset.help = 'security.apps.mode';
+
+        const allowRadio = document.createElement('sl-radio-button');
+        allowRadio.value = 'allowlist';
+        allowRadio.size = 'small';
+        allowRadio.textContent = 'Allowlist';
+
+        const blockRadio = document.createElement('sl-radio-button');
+        blockRadio.value = 'blocklist';
+        blockRadio.size = 'small';
+        blockRadio.textContent = 'Blocklist';
+
+        radioGroup.appendChild(allowRadio);
+        radioGroup.appendChild(blockRadio);
+
+        radioGroup.addEventListener('sl-change', () => {
+          state.config.security.apps.mode = radioGroup.value;
+          markDirty();
+        });
+
+        modeBlock.appendChild(modeLabel);
+        modeBlock.appendChild(radioGroup);
+        modeBlock.appendChild(createInfoIcon('security.apps.mode'));
+        body.appendChild(modeBlock);
+
+        // Allowed apps chip editor
+        const allowedBlock = document.createElement('div');
+        allowedBlock.className = 'setting-row-block';
+        const allowedHeader = document.createElement('div');
+        allowedHeader.className = 'setting-row-header';
+        const allowedLabel = document.createElement('span');
+        allowedLabel.className = 'setting-label';
+        allowedLabel.textContent = 'Allowed Apps';
+        allowedHeader.appendChild(allowedLabel);
+        allowedHeader.appendChild(createInfoIcon('security.apps.allowed'));
+        allowedBlock.appendChild(allowedHeader);
+        allowedBlock.appendChild(createChipEditor(
+          'security.apps.allowed',
+          apps.allowed || [],
+          (items) => { state.config.security.apps.allowed = items; }
+        ));
+        body.appendChild(allowedBlock);
+
+        container.appendChild(card);
+      }
+
+      // ── Card 5: ADB Security ──────────────────────────
+      {
+        const { card, body } = createSecurityCard('ADB Security', 'phone');
+        const adb = sec.adb || {};
+
+        // Allowed devices
+        const devicesBlock = document.createElement('div');
+        devicesBlock.className = 'setting-row-block';
+        const devicesHeader = document.createElement('div');
+        devicesHeader.className = 'setting-row-header';
+        const devicesLabel = document.createElement('span');
+        devicesLabel.className = 'setting-label';
+        devicesLabel.textContent = 'Allowed Devices';
+        devicesHeader.appendChild(devicesLabel);
+        devicesHeader.appendChild(createInfoIcon('security.adb.allowed_devices'));
+        devicesBlock.appendChild(devicesHeader);
+        devicesBlock.appendChild(createChipEditor(
+          'security.adb.allowed_devices',
+          adb.allowed_devices || [],
+          (items) => { state.config.security.adb.allowed_devices = items; }
+        ));
+        body.appendChild(devicesBlock);
+
+        // Allowed commands
+        const cmdsBlock = document.createElement('div');
+        cmdsBlock.className = 'setting-row-block';
+        const cmdsHeader = document.createElement('div');
+        cmdsHeader.className = 'setting-row-header';
+        const cmdsLabel = document.createElement('span');
+        cmdsLabel.className = 'setting-label';
+        cmdsLabel.textContent = 'Allowed Commands';
+        cmdsHeader.appendChild(cmdsLabel);
+        cmdsHeader.appendChild(createInfoIcon('security.adb.allowed_commands'));
+        cmdsBlock.appendChild(cmdsHeader);
+        cmdsBlock.appendChild(createChipEditor(
+          'security.adb.allowed_commands',
+          adb.allowed_commands || [],
+          (items) => { state.config.security.adb.allowed_commands = items; }
+        ));
+        body.appendChild(cmdsBlock);
+
+        container.appendChild(card);
+      }
+
+      // ── Card 6: Clipboard ─────────────────────────────
+      {
+        const { card, body } = createSecurityCard('Clipboard', 'clipboard');
+        const clip = sec.clipboard || {};
+
+        body.appendChild(createSwitchRow(
+          'Read Enabled',
+          'security.clipboard.read_enabled',
+          clip.read_enabled ?? false,
+          (val) => { state.config.security.clipboard.read_enabled = val; }
+        ));
+
+        body.appendChild(createSwitchRow(
+          'Write Enabled',
+          'security.clipboard.write_enabled',
+          clip.write_enabled ?? true,
+          (val) => { state.config.security.clipboard.write_enabled = val; }
+        ));
+
+        container.appendChild(card);
+      }
+    }
+
+    // ── Collect Changes: Security ──────────────────────────
+    window.addEventListener('collect-changes', (e) => {
+      if (state.config?.security) {
+        e.detail.security = state.config.security;
+      }
+    });
+
+    // ── Listen for config-loaded (Security) ────────────────
+    window.addEventListener('config-loaded', () => {
+      renderSecurityTab();
     });
 
     // ── Init ──────────────────────────────────────────────
