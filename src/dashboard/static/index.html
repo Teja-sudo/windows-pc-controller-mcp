@@ -760,6 +760,14 @@
         grid-template-columns: repeat(2, 1fr);
       }
     }
+
+    /* ── Help Popovers ──────────────────────────────────── */
+    .help-popover h4 { margin: 0 0 8px; color: #3b82f6; }
+    .help-popover p { margin: 4px 0; font-size: 13px; line-height: 1.4; }
+    .help-popover pre { background: #0f172a; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 8px; overflow-x: auto; }
+    .help-popover code { color: #22c55e; }
+    [data-help] { cursor: help; opacity: 0.6; transition: opacity 0.2s; }
+    [data-help]:hover { opacity: 1; }
   </style>
 </head>
 
@@ -2291,6 +2299,417 @@
     // ── Listen for config-loaded (Audit Log) ────────────────
     window.addEventListener('config-loaded', () => {
       loadAudit();
+    });
+
+    // ── Contextual Help Data ──────────────────────────────
+
+    const HELP_DATA = {
+      // ── Tool Toggles (26 entries) ──────────────────────
+
+      "tools.capture_screenshot": {
+        title: "Capture Screenshot",
+        what: "Takes a screenshot of your entire screen, a specific monitor, or a defined region. Returns the image as base64-encoded PNG data that the AI assistant can analyze.",
+        risk: "MEDIUM — Screenshots may capture sensitive content visible on screen, including private messages, banking info, passwords, or personal documents.",
+        default: "Enabled",
+        config: "tools:\n  capture_screenshot:\n    enabled: true",
+      },
+      "tools.ocr_extract_text": {
+        title: "OCR Extract Text",
+        what: "Uses RapidOCR to extract text from a region of the screen. The AI can read on-screen text without needing a screenshot — useful for scraping UI labels, reading error messages, or parsing displayed data.",
+        risk: "MEDIUM — OCR can read sensitive text displayed on screen, such as account numbers, passwords shown briefly, or confidential documents. Masking rules for blocked apps still apply.",
+        default: "Enabled",
+        config: "tools:\n  ocr_extract_text:\n    enabled: true",
+      },
+      "tools.find_on_screen": {
+        title: "Find on Screen",
+        what: "Searches for a given text string on the screen using OCR and returns the bounding-box coordinates of each match. Used by the AI to locate UI elements before clicking or interacting with them.",
+        risk: "MEDIUM — Performs OCR to locate text, which means it reads all visible screen content in the process. Subject to the same masking rules as ocr_extract_text.",
+        default: "Enabled",
+        config: "tools:\n  find_on_screen:\n    enabled: true",
+      },
+      "tools.get_pixel_color": {
+        title: "Get Pixel Color",
+        what: "Returns the RGB color value of a single pixel at the given screen coordinates. Useful for checking UI state (e.g., whether a button is highlighted) or verifying visual changes.",
+        risk: "LOW — Only reads a single pixel value. No meaningful sensitive data can be extracted from one pixel.",
+        default: "Enabled",
+        config: "tools:\n  get_pixel_color:\n    enabled: true",
+      },
+      "tools.list_windows": {
+        title: "List Windows",
+        what: "Enumerates all open windows on the desktop, returning their titles, process names, positions, and sizes. The AI uses this to understand what applications are running and where they are on screen.",
+        risk: "LOW — Window titles can reveal what you're working on (e.g., document names, website URLs in browser titles). No window content is captured.",
+        default: "Enabled",
+        config: "tools:\n  list_windows:\n    enabled: true",
+      },
+      "tools.mouse_move": {
+        title: "Mouse Move",
+        what: "Moves the mouse cursor to specific screen coordinates. This is a passive action — it does not click or interact with anything, just repositions the pointer.",
+        risk: "LOW — Moving the mouse alone cannot trigger actions. However, in some applications, hover events can reveal tooltips or trigger UI changes.",
+        default: "Enabled",
+        config: "tools:\n  mouse_move:\n    enabled: true",
+      },
+      "tools.mouse_click": {
+        title: "Mouse Click",
+        what: "Performs a mouse click (left, right, or middle button; single or double) at the specified screen coordinates. This is how the AI interacts with buttons, menus, links, and other clickable UI elements.",
+        risk: "HIGH — Clicking can trigger any action: opening files, submitting forms, confirming dialogs, deleting data, or making purchases. The AI can click anywhere on screen.",
+        default: "Enabled",
+        config: "tools:\n  mouse_click:\n    enabled: true",
+      },
+      "tools.mouse_drag": {
+        title: "Mouse Drag",
+        what: "Performs a click-and-drag from one screen coordinate to another. Used for selecting text, moving windows, dragging files, resizing elements, or drawing in graphic applications.",
+        risk: "HIGH — Drag operations can move files (e.g., dragging to trash), select and manipulate text, or rearrange UI elements. Could inadvertently move important files or selections.",
+        default: "Enabled",
+        config: "tools:\n  mouse_drag:\n    enabled: true",
+      },
+      "tools.mouse_scroll": {
+        title: "Mouse Scroll",
+        what: "Scrolls the mouse wheel up or down at the current cursor position. Used to navigate through documents, web pages, lists, or any scrollable content.",
+        risk: "LOW — Scrolling is a passive navigation action. It cannot modify data or trigger destructive actions on its own.",
+        default: "Enabled",
+        config: "tools:\n  mouse_scroll:\n    enabled: true",
+      },
+      "tools.mouse_position": {
+        title: "Mouse Position",
+        what: "Returns the current (x, y) screen coordinates of the mouse cursor. Used by the AI to understand where the pointer is before performing mouse actions.",
+        risk: "NONE — Read-only query that returns two numbers. No sensitive information is exposed.",
+        default: "Enabled",
+        config: "tools:\n  mouse_position:\n    enabled: true",
+      },
+      "tools.keyboard_type": {
+        title: "Keyboard Type",
+        what: "Types a string of text as keyboard input, as if the user were typing it character by character. Used for filling in forms, writing text, entering commands, or any text input.",
+        risk: "HIGH — Can type anything into any focused application: commands in a terminal, text in an email, or content in a code editor. The max_type_length security setting limits how much text can be typed in one call.",
+        default: "Enabled",
+        config: "tools:\n  keyboard_type:\n    enabled: true",
+      },
+      "tools.keyboard_hotkey": {
+        title: "Keyboard Hotkey",
+        what: "Sends keyboard shortcuts (hotkey combinations) like Ctrl+C, Alt+Tab, or Win+R. Blocked hotkeys (like Ctrl+Alt+Delete, Win+L, Alt+F4) are enforced by the security layer even when this tool is enabled.",
+        risk: "HIGH — Hotkeys can trigger powerful system actions. The blocklist prevents the most dangerous ones, but combinations like Ctrl+A + Delete could still cause data loss.",
+        default: "Enabled",
+        config: "tools:\n  keyboard_hotkey:\n    enabled: true",
+      },
+      "tools.keyboard_press": {
+        title: "Keyboard Press",
+        what: "Presses and releases a single key (e.g., Enter, Escape, Tab, F5, Delete). Unlike keyboard_type which types strings, this targets individual key presses for navigation and control.",
+        risk: "MEDIUM — Individual keys like Delete, Enter, or Escape can confirm dialogs, delete selected items, or dismiss prompts. Less dangerous than hotkeys but still impactful.",
+        default: "Enabled",
+        config: "tools:\n  keyboard_press:\n    enabled: true",
+      },
+      "tools.gamepad_connect": {
+        title: "Gamepad Connect",
+        what: "Creates a virtual Xbox 360 gamepad using the vgamepad library. The virtual controller appears as a real USB gamepad to Windows and all applications. Must be connected before sending gamepad inputs.",
+        risk: "LOW — Connecting a virtual gamepad is a setup action. It does not send any inputs until gamepad_input is called. Requires the vgamepad driver to be installed.",
+        default: "Enabled",
+        config: "tools:\n  gamepad_connect:\n    enabled: true",
+      },
+      "tools.gamepad_input": {
+        title: "Gamepad Input",
+        what: "Sends button presses, trigger values, or analog stick movements to the virtual gamepad. Supports all Xbox 360 controller inputs: A/B/X/Y, bumpers, triggers, sticks, D-pad, Start, Back, Guide.",
+        risk: "LOW — Gamepad inputs only affect applications that are actively listening for controller input (typically games). Cannot interact with standard Windows UI or cause system-level changes.",
+        default: "Enabled",
+        config: "tools:\n  gamepad_input:\n    enabled: true",
+      },
+      "tools.gamepad_disconnect": {
+        title: "Gamepad Disconnect",
+        what: "Disconnects and removes the virtual gamepad. Applications will see the controller as unplugged. Good practice to disconnect when done to free system resources.",
+        risk: "NONE — Removing a virtual gamepad is a cleanup action with no side effects beyond the controller disappearing from the system.",
+        default: "Enabled",
+        config: "tools:\n  gamepad_disconnect:\n    enabled: true",
+      },
+      "tools.adb_tap": {
+        title: "ADB Tap",
+        what: "Sends a tap (touch) event to an Android device connected via ADB at the specified screen coordinates. Equivalent to touching the screen with your finger at that point.",
+        risk: "MEDIUM — Can interact with any UI element on the connected Android device. Subject to the ADB allowed_devices and allowed_commands security restrictions.",
+        default: "Enabled",
+        config: "tools:\n  adb_tap:\n    enabled: true",
+      },
+      "tools.adb_swipe": {
+        title: "ADB Swipe",
+        what: "Sends a swipe gesture to an Android device connected via ADB, from one coordinate to another over a specified duration. Used for scrolling, unlocking, or navigating on the phone.",
+        risk: "MEDIUM — Swipe gestures can scroll content, dismiss notifications, or navigate between screens on the Android device. Subject to ADB security restrictions.",
+        default: "Enabled",
+        config: "tools:\n  adb_swipe:\n    enabled: true",
+      },
+      "tools.adb_key_event": {
+        title: "ADB Key Event",
+        what: "Sends an Android key event (by keycode) to a connected device via ADB. Covers hardware buttons like Home, Back, Volume, Power, as well as media keys and input method actions.",
+        risk: "MEDIUM — Key events can trigger significant device actions: Home returns to launcher, Power can lock the screen, Volume changes audio levels. Subject to ADB security restrictions.",
+        default: "Enabled",
+        config: "tools:\n  adb_key_event:\n    enabled: true",
+      },
+      "tools.adb_shell": {
+        title: "ADB Shell",
+        what: "Executes an arbitrary shell command on a connected Android device via ADB. The command must match one of the allowed command prefixes defined in security.adb.allowed_commands.",
+        risk: "CRITICAL — Shell access to an Android device is the most powerful ADB capability. Even with the allowed_commands restriction, commands can read device data, modify settings, or install packages. Review the allowed commands list carefully.",
+        default: "Enabled",
+        config: "tools:\n  adb_shell:\n    enabled: true",
+      },
+      "tools.launch_app": {
+        title: "Launch App",
+        what: "Launches an application by name or path. In allowlist mode (default), only apps explicitly listed in security.apps.allowed can be launched. In blocklist mode, any app not on the blocklist can be launched.",
+        risk: "HIGH — Launching applications can start system tools, browsers, terminals, or any installed software. The allowlist mode (default) ensures only pre-approved apps can be started.",
+        default: "Enabled",
+        config: "tools:\n  launch_app:\n    enabled: true",
+      },
+      "tools.focus_window": {
+        title: "Focus Window",
+        what: "Brings a specific window to the foreground and gives it keyboard focus, identified by window title or process name. Used to switch between applications before performing actions.",
+        risk: "LOW — Focusing a window is equivalent to clicking its taskbar button. It does not modify any data, just changes which window is active.",
+        default: "Enabled",
+        config: "tools:\n  focus_window:\n    enabled: true",
+      },
+      "tools.close_window": {
+        title: "Close Window",
+        what: "Closes a specific window by sending it a close signal (equivalent to clicking the X button). The application may prompt to save unsaved work before closing.",
+        risk: "MEDIUM — Closing windows could cause loss of unsaved work if the application does not prompt for confirmation. Some applications close immediately without a save dialog.",
+        default: "Enabled",
+        config: "tools:\n  close_window:\n    enabled: true",
+      },
+      "tools.get_system_info": {
+        title: "Get System Info",
+        what: "Returns system information including OS version, CPU, memory, disk usage, display configuration, and monitor layout. Used by the AI to understand the environment it's operating in.",
+        risk: "LOW — Exposes system hardware and configuration details. This information is generally not sensitive but could be used for fingerprinting.",
+        default: "Enabled",
+        config: "tools:\n  get_system_info:\n    enabled: true",
+      },
+      "tools.clipboard_read": {
+        title: "Clipboard Read",
+        what: "Reads the current contents of the system clipboard (text only). Returns whatever text was last copied via Ctrl+C or other clipboard operations.",
+        risk: "HIGH — Your clipboard often contains sensitive data: passwords from password managers, credit card numbers, personal messages, code with API keys. An AI reading your clipboard could inadvertently process this data.",
+        default: "Disabled (secure by default)",
+        config: "tools:\n  clipboard_read:\n    enabled: false",
+      },
+      "tools.clipboard_write": {
+        title: "Clipboard Write",
+        what: "Writes text to the system clipboard, replacing whatever was previously there. The AI can place text on your clipboard for you to paste somewhere.",
+        risk: "MEDIUM — Overwrites your current clipboard contents. If you had something important copied, it will be lost. The written content itself is controlled by the AI.",
+        default: "Enabled",
+        config: "tools:\n  clipboard_write:\n    enabled: true",
+      },
+
+      // ── Security Settings (17 entries) ─────────────────
+
+      "security.enabled": {
+        title: "Security Master Toggle",
+        what: "The global on/off switch for the entire security layer. When disabled, ALL security checks are bypassed: no confirmation popups, no rate limiting, no hotkey blocking, no app allowlists. Every tool call goes through unchecked.",
+        risk: "CRITICAL — Disabling security removes all guardrails. The AI can execute any action without restriction. Only disable this if you fully trust the AI and are actively monitoring its actions.",
+        default: "Enabled (true)",
+        config: "security:\n  enabled: true",
+      },
+      "security.confirm_dangerous_actions": {
+        title: "Confirm Dangerous Actions",
+        what: "When enabled, actions classified as dangerous (like launching apps, closing windows, or typing in sensitive contexts) trigger a native Windows popup with Allow/Deny buttons and a countdown timer. You must explicitly approve each action.",
+        risk: "HIGH — Disabling this means the AI can perform dangerous actions without asking you first. The confirmation popup is your last line of defense before an action executes.",
+        default: "Enabled (true)",
+        config: "security:\n  confirm_dangerous_actions: true",
+      },
+      "security.confirmation_timeout_seconds": {
+        title: "Confirmation Timeout",
+        what: "How many seconds the confirmation popup waits before automatically denying the action. If you don't click Allow or Deny within this time, the action is denied by default (fail-safe).",
+        risk: "MEDIUM — Setting this too low may cause legitimate actions to time out before you can review them. Setting it too high keeps the AI waiting longer. The popup auto-denies (not auto-allows) on timeout.",
+        default: "60 seconds",
+        config: "security:\n  confirmation_timeout_seconds: 60",
+      },
+      "security.audit_logging": {
+        title: "Audit Logging",
+        what: "Records every tool invocation to a SQLite audit log, including the tool name, parameters, whether it was allowed or denied, and the reason. This powers the Audit Log tab in this dashboard.",
+        risk: "LOW — Audit logs are stored locally and contain a record of AI actions. Disabling this means you lose visibility into what the AI has been doing. Highly recommended to keep enabled.",
+        default: "Enabled (true)",
+        config: "security:\n  audit_logging: true",
+      },
+      "security.masking.enabled": {
+        title: "Screen Masking",
+        what: "When enabled, screenshots and OCR operations automatically detect and mask (redact) sensitive content from blocked applications. Password manager windows, credential screens, and other sensitive apps are obscured before the AI sees them.",
+        risk: "HIGH — Disabling masking means the AI can see the full content of all windows in screenshots and OCR, including password managers and credential dialogs. This is a critical privacy protection.",
+        default: "Enabled (true)",
+        config: "security:\n  masking:\n    enabled: true",
+      },
+      "security.masking.mask_password_fields": {
+        title: "Mask Password Fields",
+        what: "Automatically detects and masks password input fields in screenshots and OCR. Even if the password is hidden with dots in the UI, the underlying text or field location is redacted to prevent the AI from targeting it.",
+        risk: "HIGH — Disabling this allows the AI to see and potentially interact with password fields. Combined with OCR, an AI could read partially-visible passwords or identify password entry points.",
+        default: "Enabled (true)",
+        config: "security:\n  masking:\n    mask_password_fields: true",
+      },
+      "security.masking.blocked_apps": {
+        title: "Blocked Apps (Masking)",
+        what: "A list of application names whose windows will be completely masked (blacked out) in screenshots and OCR. Any window whose title or process name matches an entry in this list will be redacted before the AI processes the image.",
+        risk: "MEDIUM — Removing apps from this list exposes their window contents to AI screenshots. The defaults cover popular password managers. Add any applications that display sensitive data you don't want the AI to see.",
+        default: "1Password, KeePass, LastPass, Bitwarden, Windows Security, Credential Manager",
+        config: "security:\n  masking:\n    blocked_apps:\n      - \"1Password\"\n      - \"KeePass\"\n      - \"Bitwarden\"",
+      },
+      "security.keyboard.blocked_hotkeys": {
+        title: "Blocked Hotkeys",
+        what: "A list of keyboard shortcuts that the AI is never allowed to send, regardless of other settings. These hotkeys are blocked at the security layer and cannot be bypassed even with security.confirm_dangerous_actions enabled.",
+        risk: "CRITICAL — Removing hotkeys from this list allows the AI to send them. Ctrl+Alt+Delete opens the security screen, Win+L locks your computer, and Alt+F4 force-closes the active window. Add any hotkeys you want permanently blocked.",
+        default: "ctrl+alt+delete, win+l, alt+f4",
+        config: "security:\n  keyboard:\n    blocked_hotkeys:\n      - \"ctrl+alt+delete\"\n      - \"win+l\"\n      - \"alt+f4\"",
+      },
+      "security.keyboard.max_type_length": {
+        title: "Max Type Length",
+        what: "The maximum number of characters the AI can type in a single keyboard_type call. If the AI tries to type more than this limit, the action is denied. This prevents runaway text input or paste-bombing.",
+        risk: "MEDIUM — Setting this too high allows the AI to type very long strings in a single action, which could flood an input field or terminal. Setting it too low may prevent legitimate long-form typing.",
+        default: "500 characters",
+        config: "security:\n  keyboard:\n    max_type_length: 500",
+      },
+      "security.keyboard.block_password_fields": {
+        title: "Block Password Fields",
+        what: "When enabled, the keyboard_type tool refuses to type into detected password fields. The security layer checks the currently focused UI element and blocks typing if it appears to be a password input.",
+        risk: "HIGH — Disabling this allows the AI to type into password fields, which could be used to enter or change passwords. This is separate from masking — masking hides passwords from the AI, this prevents the AI from typing into them.",
+        default: "Enabled (true)",
+        config: "security:\n  keyboard:\n    block_password_fields: true",
+      },
+      "security.apps.mode": {
+        title: "App Execution Mode",
+        what: "Controls how the launch_app tool decides which applications can be started. In 'allowlist' mode (default), only apps explicitly listed in security.apps.allowed can be launched. In 'blocklist' mode, any app NOT on the list can be launched.",
+        risk: "CRITICAL — Switching to 'blocklist' mode is much more permissive: the AI can launch any application you haven't explicitly blocked. Allowlist mode (default) is far safer as it requires you to approve each app.",
+        default: "allowlist",
+        config: "security:\n  apps:\n    mode: \"allowlist\"",
+      },
+      "security.apps.allowed": {
+        title: "Allowed Apps",
+        what: "The list of application names or paths that the AI is permitted to launch when app execution mode is set to 'allowlist'. Add entries matching the executable name (e.g., 'notepad', 'chrome') or full path.",
+        risk: "HIGH — Each app you add to this list is an app the AI can start on its own. Be selective. Adding powerful tools like 'cmd', 'powershell', or 'regedit' significantly expands what the AI can do on your system.",
+        default: "Empty list (no apps allowed by default)",
+        config: "security:\n  apps:\n    allowed:\n      - \"notepad\"\n      - \"calculator\"",
+      },
+      "security.adb.allowed_devices": {
+        title: "ADB Allowed Devices",
+        what: "A list of Android device serial numbers that ADB tools are allowed to interact with. When empty, ADB commands can target any connected device. Adding serials restricts access to only those specific devices.",
+        risk: "MEDIUM — An empty list means any connected Android device can be controlled. If you have multiple devices connected, add specific device serials to prevent the AI from accidentally controlling the wrong phone or tablet.",
+        default: "Empty list (all connected devices allowed)",
+        config: "security:\n  adb:\n    allowed_devices:\n      - \"DEVICE_SERIAL_123\"",
+      },
+      "security.adb.allowed_commands": {
+        title: "ADB Allowed Commands",
+        what: "A list of command prefixes that the adb_shell tool is allowed to execute. Each shell command is checked against these prefixes — if it doesn't start with one of them, it's blocked. This is the primary restriction on ADB shell access.",
+        risk: "CRITICAL — The commands you allow here determine what the AI can do on your Android device via shell. The defaults are conservative (input, screencap, dumpsys). Adding 'pm' allows package management, 'am' allows activity launching, and 'su' would grant root access.",
+        default: "input tap, input swipe, input keyevent, screencap, dumpsys window",
+        config: "security:\n  adb:\n    allowed_commands:\n      - \"input tap\"\n      - \"input swipe\"\n      - \"screencap\"",
+      },
+      "security.clipboard.read_enabled": {
+        title: "Clipboard Read Access",
+        what: "Allows the AI assistant to read the contents of your clipboard. When enabled, the clipboard_read tool can access whatever text you last copied.",
+        risk: "HIGH — Your clipboard often contains sensitive data: passwords from password managers, credit card numbers, personal messages, code with API keys. An AI reading your clipboard could inadvertently process this data.",
+        default: "Disabled (secure by default)",
+        config: "security:\n  clipboard:\n    read_enabled: true",
+      },
+      "security.clipboard.write_enabled": {
+        title: "Clipboard Write Access",
+        what: "Allows the AI assistant to write text to your system clipboard. When enabled, the clipboard_write tool can place content on your clipboard for you to paste. This overwrites whatever was previously copied.",
+        risk: "MEDIUM — The AI can replace your clipboard contents. If you had important text copied, it will be lost. The AI controls what gets written, so verify before pasting AI-provided clipboard content.",
+        default: "Enabled (true)",
+        config: "security:\n  clipboard:\n    write_enabled: true",
+      },
+
+      // ── Rate Limits (5 entries) ────────────────────────
+
+      "rate_limits.mouse": {
+        title: "Mouse Rate Limit",
+        what: "Maximum number of mouse actions (move, click, drag, scroll) allowed per minute. When the limit is reached, additional mouse tool calls are denied until the window resets. Prevents the AI from rapidly clicking or moving the mouse.",
+        risk: "LOW — Rate limits are a safety net. Setting this too low may interrupt legitimate automation workflows. Setting it too high reduces protection against rapid-fire mouse actions.",
+        default: "60 calls/min",
+        config: "security:\n  rate_limits:\n    mouse: 60",
+      },
+      "rate_limits.keyboard": {
+        title: "Keyboard Rate Limit",
+        what: "Maximum number of keyboard actions (type, hotkey, press) allowed per minute. Limits how fast the AI can send keyboard input. Each tool call counts as one action regardless of text length.",
+        risk: "LOW — A higher limit allows faster typing workflows but increases the potential for rapid uncontrolled input. The max_type_length setting separately limits per-call text length.",
+        default: "120 calls/min",
+        config: "security:\n  rate_limits:\n    keyboard: 120",
+      },
+      "rate_limits.screenshot": {
+        title: "Screenshot Rate Limit",
+        what: "Maximum number of screenshot and OCR operations allowed per minute. Covers capture_screenshot, ocr_extract_text, and find_on_screen. Limits how frequently the AI can observe your screen.",
+        risk: "LOW — Frequent screenshots consume CPU and memory for image processing. A lower limit reduces system load and limits how often the AI can observe screen changes.",
+        default: "10 calls/min",
+        config: "security:\n  rate_limits:\n    screenshot: 10",
+      },
+      "rate_limits.adb": {
+        title: "ADB Rate Limit",
+        what: "Maximum number of ADB operations (tap, swipe, key_event, shell) allowed per minute. Limits how fast the AI can interact with connected Android devices.",
+        risk: "LOW — ADB commands run over USB/network and have inherent latency. A lower limit prevents the AI from overwhelming a connected device with rapid commands.",
+        default: "30 calls/min",
+        config: "security:\n  rate_limits:\n    adb: 30",
+      },
+      "rate_limits.gamepad": {
+        title: "Gamepad Rate Limit",
+        what: "Maximum number of virtual gamepad operations (connect, input, disconnect) allowed per minute. Limits how fast the AI can send controller inputs to games.",
+        risk: "LOW — Gamepad inputs only affect game applications. A higher limit is useful for games that require rapid inputs (like fighting games or rhythm games). Lower limits work for turn-based or slower-paced games.",
+        default: "120 calls/min",
+        config: "security:\n  rate_limits:\n    gamepad: 120",
+      },
+    };
+
+    // ── Contextual Help Initialization ───────────────────
+
+    /**
+     * Initialize Tippy.js popovers for all elements with data-help attributes.
+     * Must be called AFTER tab content has been rendered into the DOM.
+     * Safe to call multiple times — destroys existing tippys before re-creating.
+     */
+    function initHelp() {
+      document.querySelectorAll('[data-help]').forEach(el => {
+        const key = el.dataset.help;
+        const help = HELP_DATA[key];
+        if (!help) return;
+
+        // Destroy existing tippy if present (idempotent re-init)
+        if (el._tippy) el._tippy.destroy();
+
+        // Build popover content safely (no innerHTML with user data)
+        const content = document.createElement('div');
+        content.className = 'help-popover';
+
+        const titleEl = document.createElement('h4');
+        titleEl.textContent = help.title;
+        content.appendChild(titleEl);
+
+        const whatP = document.createElement('p');
+        const whatStrong = document.createElement('strong');
+        whatStrong.textContent = 'What: ';
+        whatP.appendChild(whatStrong);
+        whatP.appendChild(document.createTextNode(help.what));
+        content.appendChild(whatP);
+
+        const riskP = document.createElement('p');
+        const riskStrong = document.createElement('strong');
+        riskStrong.textContent = 'Risk: ';
+        riskP.appendChild(riskStrong);
+        riskP.appendChild(document.createTextNode(help.risk));
+        content.appendChild(riskP);
+
+        const defaultP = document.createElement('p');
+        const defaultStrong = document.createElement('strong');
+        defaultStrong.textContent = 'Default: ';
+        defaultP.appendChild(defaultStrong);
+        defaultP.appendChild(document.createTextNode(help.default));
+        content.appendChild(defaultP);
+
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.textContent = help.config;
+        pre.appendChild(code);
+        content.appendChild(pre);
+
+        tippy(el, {
+          content: content,
+          allowHTML: true,
+          theme: 'material',
+          placement: 'right',
+          interactive: true,
+          maxWidth: 400,
+          appendTo: document.body,
+        });
+      });
+    }
+
+    // ── Wire up initHelp() after all tabs render ─────────
+    window.addEventListener('config-loaded', () => {
+      // Small delay to ensure all tab renderers have completed
+      requestAnimationFrame(() => initHelp());
     });
 
     // ── Init ──────────────────────────────────────────────
