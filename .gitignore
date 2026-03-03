@@ -1,3 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
 # Context tracking (session state for Claude)
 .context/
 
