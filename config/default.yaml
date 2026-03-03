@@ -1,0 +1,103 @@
+security:
+  enabled: true
+  confirm_dangerous_actions: true
+  confirmation_timeout_seconds: 60
+  audit_logging: true
+
+  masking:
+    enabled: true
+    mask_password_fields: true
+    blocked_apps:
+      - "1Password"
+      - "KeePass"
+      - "LastPass"
+      - "Bitwarden"
+      - "Windows Security"
+      - "Credential Manager"
+    blocked_regions: []
+
+  rate_limits:
+    mouse: 60
+    keyboard: 120
+    screenshot: 10
+    adb: 30
+    gamepad: 120
+
+  keyboard:
+    blocked_hotkeys:
+      - "ctrl+alt+delete"
+      - "win+l"
+      - "alt+f4"
+    max_type_length: 500
+    block_password_fields: true
+
+  apps:
+    mode: "allowlist"
+    allowed: []
+
+  adb:
+    allowed_devices: []
+    allowed_commands:
+      - "input tap"
+      - "input swipe"
+      - "input keyevent"
+      - "screencap"
+      - "dumpsys window"
+
+  clipboard:
+    read_enabled: false
+    write_enabled: true
+
+tools:
+  capture_screenshot:
+    enabled: true
+  ocr_extract_text:
+    enabled: true
+  find_on_screen:
+    enabled: true
+  get_pixel_color:
+    enabled: true
+  list_windows:
+    enabled: true
+  mouse_move:
+    enabled: true
+  mouse_click:
+    enabled: true
+  mouse_drag:
+    enabled: true
+  mouse_scroll:
+    enabled: true
+  mouse_position:
+    enabled: true
+  keyboard_type:
+    enabled: true
+  keyboard_hotkey:
+    enabled: true
+  keyboard_press:
+    enabled: true
+  gamepad_connect:
+    enabled: true
+  gamepad_input:
+    enabled: true
+  gamepad_disconnect:
+    enabled: true
+  adb_tap:
+    enabled: true
+  adb_swipe:
+    enabled: true
+  adb_key_event:
+    enabled: true
+  adb_shell:
+    enabled: true
+  launch_app:
+    enabled: true
+  focus_window:
+    enabled: true
+  close_window:
+    enabled: true
+  get_system_info:
+    enabled: true
+  clipboard_read:
+    enabled: false
+  clipboard_write:
+    enabled: true
