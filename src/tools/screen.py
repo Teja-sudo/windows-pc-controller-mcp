@@ -11,6 +11,10 @@ from src.utils.image_utils import pil_to_base64, find_template
 from src.utils.win32_helpers import enumerate_windows
 from src.security.masking import filter_windows, should_redact_window
 
+# Cached RapidOCR engine — models load once, reuse across all calls
+_ocr_engine = None
+_OCR_MAX_DIMENSION = 1920  # Downscale images larger than this for faster OCR
+
 
 def capture_screenshot(
     monitor: int = 0,
@@ -45,37 +49,143 @@ def capture_screenshot(
         return {"success": False, "error": str(e), "suggestion": "Try specifying a different monitor index or region"}
 
 
+def _get_ocr_engine():
+    """Get or create the cached RapidOCR engine (lazy singleton)."""
+    global _ocr_engine
+    if _ocr_engine is None:
+        from rapidocr_onnxruntime import RapidOCR
+        _ocr_engine = RapidOCR()
+    return _ocr_engine
+
+
+def _ocr_via_rapidocr(img_array: np.ndarray) -> list[dict[str, Any]]:
+    """Run OCR using RapidOCR (ONNX Runtime). Fast, ~1-3 seconds."""
+    engine = _get_ocr_engine()
+    results, _ = engine(img_array)
+    if not results:
+        return []
+    extracted = []
+    for bbox, text, confidence in results:
+        extracted.append({
+            "text": text,
+            "confidence": round(float(confidence), 3),
+            "bbox": bbox,
+        })
+    return extracted
+
+
+def _ocr_via_windows_native(img: Image.Image) -> list[dict[str, Any]]:
+    """Fallback: Windows 10/11 native OCR via PowerShell + WinRT API. No pip packages needed."""
+    import subprocess, tempfile, os, json as _json
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        img.save(f, format="PNG")
+        tmp_path = f.name.replace("\\", "\\\\")
+
+    ps_script = f'''
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {{
+    $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
+}})[0]
+Function Await($WinRtTask, $ResultType) {{
+    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
+    $netTask = $asTask.Invoke($null, @($WinRtTask))
+    $netTask.Wait(-1) | Out-Null
+    $netTask.Result
+}}
+[Windows.Storage.StorageFile,Windows.Storage,ContentType=WindowsRuntime] | Out-Null
+[Windows.Media.Ocr.OcrEngine,Windows.Foundation,ContentType=WindowsRuntime] | Out-Null
+[Windows.Graphics.Imaging.BitmapDecoder,Windows.Foundation,ContentType=WindowsRuntime] | Out-Null
+
+$file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync("{tmp_path}")) ([Windows.Storage.StorageFile])
+$stream = Await ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+$decoder = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+$bitmap = Await ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+$engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+$ocrResult = Await ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
+
+$lines = @()
+foreach ($line in $ocrResult.Lines) {{
+    $words = @()
+    foreach ($word in $line.Words) {{
+        $rect = $word.BoundingRect
+        $words += @{{text=$word.Text; x=[int]$rect.X; y=[int]$rect.Y; w=[int]$rect.Width; h=[int]$rect.Height}}
+    }}
+    $lines += @{{text=$line.Text; words=$words}}
+}}
+$lines | ConvertTo-Json -Depth 4 -Compress
+'''
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            capture_output=True, text=True, timeout=30,
+        )
+        os.unlink(tmp_path)
+
+        if result.returncode != 0 or not result.stdout.strip():
+            raise RuntimeError(result.stderr.strip() or "Windows OCR returned no output")
+
+        raw = _json.loads(result.stdout.strip())
+        # PowerShell returns a single object (not array) if only one line
+        if isinstance(raw, dict):
+            raw = [raw]
+
+        extracted = []
+        for line in raw:
+            extracted.append({
+                "text": line["text"],
+                "confidence": 1.0,  # Windows OCR doesn't return confidence
+                "bbox": None,
+            })
+        return extracted
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 def ocr_extract_text(
     region: dict[str, int] | None = None,
     monitor: int = 0,
 ) -> dict[str, Any]:
-    """Extract text from a screen region using EasyOCR."""
+    """Extract text from a screen region. Uses RapidOCR, falls back to Windows native OCR."""
     try:
-        import easyocr
-
         shot = capture_screenshot(monitor=monitor, region=region)
         if not shot["success"]:
             return shot
 
         import base64, io
         img_bytes = base64.b64decode(shot["image_base64"])
-        img_array = np.array(Image.open(io.BytesIO(img_bytes)))
+        img = Image.open(io.BytesIO(img_bytes))
 
-        reader = easyocr.Reader(["en"], gpu=False)
-        results = reader.readtext(img_array)
+        # Downscale large images for faster OCR
+        max_dim = max(img.width, img.height)
+        if max_dim > _OCR_MAX_DIMENSION:
+            scale = _OCR_MAX_DIMENSION / max_dim
+            img = img.resize(
+                (int(img.width * scale), int(img.height * scale)),
+                Image.LANCZOS,
+            )
 
-        extracted = []
-        for bbox, text, confidence in results:
-            extracted.append({
-                "text": text,
-                "confidence": round(confidence, 3),
-                "bbox": bbox,
-            })
+        img_array = np.array(img)
+
+        # Try RapidOCR first (fast, ONNX-based)
+        try:
+            extracted = _ocr_via_rapidocr(img_array)
+        except Exception:
+            # Fallback to Windows native OCR
+            extracted = _ocr_via_windows_native(img)
 
         full_text = " ".join(item["text"] for item in extracted)
         return {"success": True, "text": full_text, "details": extracted}
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Ensure easyocr is installed: pip install easyocr"}
+        return {
+            "success": False,
+            "error": str(e),
+            "suggestion": "Install rapidocr-onnxruntime: pip install rapidocr-onnxruntime",
+        }
 
 
 def find_on_screen(

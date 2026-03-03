@@ -52,11 +52,15 @@ def show_confirmation(
 
         ctk.set_appearance_mode("dark")
 
-        app = ctk.CTkToplevel()
+        app = ctk.CTk()
         app.title("Action Requires Approval")
         app.geometry("500x400")
         app.attributes("-topmost", True)
         app.resizable(False, False)
+        app.protocol("WM_DELETE_WINDOW", lambda: (
+            result_holder.append(ConfirmationResult(action="deny")),
+            app.destroy(),
+        ))
 
         remaining = [timeout_seconds]
 
