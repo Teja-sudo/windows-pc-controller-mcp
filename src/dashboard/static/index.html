@@ -708,14 +708,22 @@
         const details = document.createElement('sl-details');
         details.open = true;
 
-        // Summary content
-        details.innerHTML = `
-          <div class="category-summary" slot="summary">
-            <sl-icon name="${icon}"></sl-icon>
-            <span>${category}</span>
-            <span class="category-badge" data-category="${category}">${enabledCount}/${toolNames.length}</span>
-          </div>
-        `;
+        // Summary content (built with DOM API — no innerHTML)
+        const summary = document.createElement('div');
+        summary.className = 'category-summary';
+        summary.slot = 'summary';
+        const iconEl = document.createElement('sl-icon');
+        iconEl.name = icon;
+        summary.appendChild(iconEl);
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = category;
+        summary.appendChild(nameSpan);
+        const badge = document.createElement('span');
+        badge.className = 'category-badge';
+        badge.dataset.category = category;
+        badge.textContent = `${enabledCount}/${toolNames.length}`;
+        summary.appendChild(badge);
+        details.appendChild(summary);
 
         // Content: actions bar + tool list
         const content = document.createElement('div');
@@ -801,8 +809,9 @@
         if (!state.config.tools[toolName]) state.config.tools[toolName] = {};
         state.config.tools[toolName].enabled = enabled;
 
-        // Update the switch in the DOM
-        const toggle = document.querySelector(`sl-switch[data-tool="${toolName}"]`);
+        // Update the switch in the DOM (scoped to tools container)
+        const container = document.getElementById('toolsContainer');
+        const toggle = container.querySelector(`sl-switch[data-tool="${toolName}"]`);
         if (toggle) toggle.checked = enabled;
       }
 
