@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import uvicorn
+import yaml
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
@@ -30,6 +31,48 @@ def create_app() -> FastAPI:
         if not html_path.exists():
             return HTMLResponse("<h1>Dashboard UI not found</h1>", status_code=404)
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
+
+    @app.get("/api/config")
+    async def get_config():
+        config = load_config(
+            default_path=str(DEFAULT_YAML),
+            user_path=str(USER_YAML) if USER_YAML.exists() else None,
+        )
+        data = config.model_dump()
+        data["_has_user_config"] = USER_YAML.exists()
+        data["_user_config_path"] = str(USER_YAML)
+        return data
+
+    @app.put("/api/config")
+    async def put_config(body: dict[str, Any]):
+        # Load existing user config or empty
+        existing: dict[str, Any] = {}
+        if USER_YAML.exists():
+            with open(USER_YAML) as f:
+                existing = yaml.safe_load(f) or {}
+        # Deep merge new values on top
+        merged = _deep_merge(existing, body)
+        # Save
+        USER_YAML.parent.mkdir(parents=True, exist_ok=True)
+        with open(USER_YAML, "w") as f:
+            yaml.dump(merged, f, default_flow_style=False, sort_keys=False)
+        # Return full merged config
+        config = load_config(
+            default_path=str(DEFAULT_YAML),
+            user_path=str(USER_YAML),
+        )
+        result = config.model_dump()
+        result["_has_user_config"] = True
+        return result
+
+    @app.post("/api/config/reset")
+    async def reset_config():
+        if USER_YAML.exists():
+            USER_YAML.unlink()
+        config = load_config(default_path=str(DEFAULT_YAML))
+        result = config.model_dump()
+        result["_has_user_config"] = False
+        return result
 
     return app
 
