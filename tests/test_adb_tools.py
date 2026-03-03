@@ -1,8 +1,11 @@
 """Tests for ADB tools — tap, swipe, key event, shell, and validation."""
+import sys
 import subprocess
 
 import pytest
 from unittest.mock import patch, MagicMock
+
+pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 
 
 # ---------------------------------------------------------------------------
