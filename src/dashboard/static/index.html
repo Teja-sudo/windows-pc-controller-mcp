@@ -255,6 +255,109 @@
       --track-color: var(--border);
     }
 
+    /* ── Tools Tab: Category Cards ────────────────────────── */
+    .tools-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .category-card sl-details::part(base) {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+    }
+
+    .category-card sl-details::part(header) {
+      padding: 0.875rem 1.25rem;
+      font-weight: 600;
+    }
+
+    .category-card sl-details::part(content) {
+      padding: 0 1.25rem 1rem;
+    }
+
+    .category-summary {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      font-size: 0.9375rem;
+    }
+
+    .category-summary sl-icon {
+      font-size: 1.125rem;
+      color: var(--accent);
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 999px;
+      min-width: 1.5rem;
+      height: 1.375rem;
+      padding: 0 0.5rem;
+    }
+
+    .category-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tool-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+    }
+
+    .tool-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.25rem;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .tool-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tool-row sl-switch {
+      --width: 36px;
+      --height: 20px;
+      --thumb-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .tool-name {
+      flex: 1;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8125rem;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .tool-info-icon {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.15s ease;
+    }
+
+    .tool-info-icon:hover {
+      color: var(--accent);
+    }
+
     /* ── Responsive ────────────────────────────────────────── */
     @media (max-width: 768px) {
       .container {
@@ -320,9 +423,8 @@
 
           <!-- ── Tab 1: Tools ──────────────────────────────── -->
           <sl-tab-panel name="tools">
-            <!-- Tools tab content (Task 5) -->
-            <div class="tab-placeholder">
-              Tools configuration will appear here.
+            <div class="tools-container" id="toolsContainer">
+              <!-- Populated by renderToolsTab() -->
             </div>
           </sl-tab-panel>
 
@@ -561,6 +663,170 @@
         e.preventDefault();
         e.returnValue = '';
       }
+    });
+
+    // ── Tool Categories ───────────────────────────────────
+    const TOOL_CATEGORIES = {
+      'Screen':    ['capture_screenshot', 'ocr_extract_text', 'find_on_screen', 'get_pixel_color', 'list_windows'],
+      'Mouse':     ['mouse_move', 'mouse_click', 'mouse_drag', 'mouse_scroll', 'mouse_position'],
+      'Keyboard':  ['keyboard_type', 'keyboard_hotkey', 'keyboard_press'],
+      'Gamepad':   ['gamepad_connect', 'gamepad_input', 'gamepad_disconnect'],
+      'ADB':       ['adb_tap', 'adb_swipe', 'adb_key_event', 'adb_shell'],
+      'System':    ['launch_app', 'focus_window', 'close_window', 'get_system_info'],
+      'Clipboard': ['clipboard_read', 'clipboard_write'],
+    };
+
+    const CATEGORY_ICONS = {
+      'Screen':    'display',
+      'Mouse':     'mouse',
+      'Keyboard':  'keyboard',
+      'Gamepad':   'controller',
+      'ADB':       'phone',
+      'System':    'pc-display',
+      'Clipboard': 'clipboard',
+    };
+
+    // Expose for other tab modules
+    window.TOOL_CATEGORIES = TOOL_CATEGORIES;
+
+    // ── Tools Tab Renderer ─────────────────────────────────
+    function renderToolsTab() {
+      const container = document.getElementById('toolsContainer');
+      container.innerHTML = '';
+
+      const tools = state.config?.tools ?? {};
+
+      for (const [category, toolNames] of Object.entries(TOOL_CATEGORIES)) {
+        const icon = CATEGORY_ICONS[category] || 'tools';
+        const enabledCount = toolNames.filter(n => tools[n]?.enabled ?? true).length;
+
+        // Category card wrapper
+        const card = document.createElement('div');
+        card.className = 'category-card';
+
+        // sl-details element
+        const details = document.createElement('sl-details');
+        details.open = true;
+
+        // Summary content
+        details.innerHTML = `
+          <div class="category-summary" slot="summary">
+            <sl-icon name="${icon}"></sl-icon>
+            <span>${category}</span>
+            <span class="category-badge" data-category="${category}">${enabledCount}/${toolNames.length}</span>
+          </div>
+        `;
+
+        // Content: actions bar + tool list
+        const content = document.createElement('div');
+
+        // Enable All / Disable All buttons
+        const actions = document.createElement('div');
+        actions.className = 'category-actions';
+
+        const enableAllBtn = document.createElement('sl-button');
+        enableAllBtn.variant = 'default';
+        enableAllBtn.size = 'small';
+        enableAllBtn.textContent = 'Enable All';
+        enableAllBtn.addEventListener('click', () => {
+          setCategoryEnabled(category, toolNames, true);
+        });
+
+        const disableAllBtn = document.createElement('sl-button');
+        disableAllBtn.variant = 'default';
+        disableAllBtn.size = 'small';
+        disableAllBtn.textContent = 'Disable All';
+        disableAllBtn.addEventListener('click', () => {
+          setCategoryEnabled(category, toolNames, false);
+        });
+
+        actions.appendChild(enableAllBtn);
+        actions.appendChild(disableAllBtn);
+        content.appendChild(actions);
+
+        // Tool rows
+        const toolList = document.createElement('div');
+        toolList.className = 'tool-list';
+
+        for (const toolName of toolNames) {
+          const enabled = tools[toolName]?.enabled ?? true;
+
+          const row = document.createElement('div');
+          row.className = 'tool-row';
+
+          const toggle = document.createElement('sl-switch');
+          toggle.checked = enabled;
+          toggle.dataset.tool = toolName;
+          toggle.addEventListener('sl-change', () => {
+            onToolToggle(toolName, toggle.checked, category, toolNames);
+          });
+
+          const label = document.createElement('span');
+          label.className = 'tool-name';
+          label.textContent = toolName;
+
+          const infoIcon = document.createElement('sl-icon');
+          infoIcon.className = 'tool-info-icon';
+          infoIcon.name = 'info-circle';
+          infoIcon.dataset.help = `tools.${toolName}`;
+
+          row.appendChild(toggle);
+          row.appendChild(label);
+          row.appendChild(infoIcon);
+          toolList.appendChild(row);
+        }
+
+        content.appendChild(toolList);
+        details.appendChild(content);
+        card.appendChild(details);
+        container.appendChild(card);
+      }
+    }
+
+    function onToolToggle(toolName, enabled, category, toolNames) {
+      // Ensure tools map exists
+      if (!state.config.tools) state.config.tools = {};
+      if (!state.config.tools[toolName]) state.config.tools[toolName] = {};
+      state.config.tools[toolName].enabled = enabled;
+
+      // Update badge count
+      updateCategoryBadge(category, toolNames);
+      markDirty();
+    }
+
+    function setCategoryEnabled(category, toolNames, enabled) {
+      if (!state.config.tools) state.config.tools = {};
+
+      for (const toolName of toolNames) {
+        if (!state.config.tools[toolName]) state.config.tools[toolName] = {};
+        state.config.tools[toolName].enabled = enabled;
+
+        // Update the switch in the DOM
+        const toggle = document.querySelector(`sl-switch[data-tool="${toolName}"]`);
+        if (toggle) toggle.checked = enabled;
+      }
+
+      updateCategoryBadge(category, toolNames);
+      markDirty();
+    }
+
+    function updateCategoryBadge(category, toolNames) {
+      const tools = state.config?.tools ?? {};
+      const enabledCount = toolNames.filter(n => tools[n]?.enabled ?? true).length;
+      const badge = document.querySelector(`.category-badge[data-category="${category}"]`);
+      if (badge) badge.textContent = `${enabledCount}/${toolNames.length}`;
+    }
+
+    // ── Collect Changes: Tools ─────────────────────────────
+    window.addEventListener('collect-changes', (e) => {
+      if (state.config?.tools) {
+        e.detail.tools = state.config.tools;
+      }
+    });
+
+    // ── Listen for config-loaded ───────────────────────────
+    window.addEventListener('config-loaded', () => {
+      renderToolsTab();
     });
 
     // ── Init ──────────────────────────────────────────────
