@@ -6,6 +6,8 @@ from typing import Any
 
 from pynput.mouse import Button, Controller
 
+from src.utils.errors import tool_error, tool_success, OS_ERROR
+
 
 _mouse = Controller()
 
@@ -20,9 +22,9 @@ def mouse_position() -> dict[str, Any]:
     """Get current mouse cursor position."""
     try:
         x, y = _mouse.position
-        return {"success": True, "x": int(x), "y": int(y)}
+        return tool_success(x=int(x), y=int(y))
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "This tool requires a display session"}
+        return tool_error(str(e), OS_ERROR, suggestion="This tool requires a display session")
 
 
 def mouse_move(x: int, y: int, relative: bool = False) -> dict[str, Any]:
@@ -34,9 +36,9 @@ def mouse_move(x: int, y: int, relative: bool = False) -> dict[str, Any]:
         else:
             _mouse.position = (x, y)
         final_x, final_y = _mouse.position
-        return {"success": True, "x": int(final_x), "y": int(final_y)}
+        return tool_success(x=int(final_x), y=int(final_y))
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Check coordinates are within screen bounds"}
+        return tool_error(str(e), OS_ERROR, suggestion="Check coordinates are within screen bounds")
 
 
 def mouse_click(
@@ -53,9 +55,9 @@ def mouse_click(
 
         btn = _BUTTON_MAP.get(button, Button.left)
         _mouse.click(btn, clicks)
-        return {"success": True, "button": button, "clicks": clicks}
+        return tool_success(button=button, clicks=clicks)
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Check coordinates are within screen bounds. Use get_screen_info to verify screen dimensions."}
+        return tool_error(str(e), OS_ERROR, suggestion="Check coordinates are within screen bounds. Use get_screen_info to verify screen dimensions.")
 
 
 def mouse_drag(
@@ -80,15 +82,15 @@ def mouse_drag(
             time.sleep(duration / steps)
 
         _mouse.release(btn)
-        return {"success": True, "start": [start_x, start_y], "end": [end_x, end_y]}
+        return tool_success(start=[start_x, start_y], end=[end_x, end_y])
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Check that start and end coordinates are within screen bounds"}
+        return tool_error(str(e), OS_ERROR, suggestion="Check that start and end coordinates are within screen bounds")
 
 
 def mouse_scroll(dx: int = 0, dy: int = 0) -> dict[str, Any]:
     """Scroll by dx (horizontal) and dy (vertical) clicks."""
     try:
         _mouse.scroll(dx, dy)
-        return {"success": True, "dx": dx, "dy": dy}
+        return tool_success(dx=dx, dy=dy)
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Move mouse to the target area first with mouse_move before scrolling"}
+        return tool_error(str(e), OS_ERROR, suggestion="Move mouse to the target area first with mouse_move before scrolling")

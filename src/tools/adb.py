@@ -4,6 +4,8 @@ from __future__ import annotations
 import subprocess
 from typing import Any
 
+from src.utils.errors import tool_error, tool_success, NOT_FOUND, TIMEOUT, DEPENDENCY_MISSING, OS_ERROR
+
 
 def validate_adb_command(command: str, allowed_commands: list[str]) -> bool:
     """Check if an ADB command is in the allowlist.
@@ -33,29 +35,26 @@ def _run_adb_command(command: str, device: str | None = None) -> dict[str, Any]:
             timeout=10,
         )
         if result.returncode != 0:
-            return {
-                "success": False,
-                "error": result.stderr.strip(),
-                "suggestion": "Check ADB connection and device serial",
-            }
-        return {"success": True, "output": result.stdout.strip()}
+            return tool_error(
+                result.stderr.strip(), OS_ERROR,
+                suggestion="Check ADB connection and device serial. Use 'adb devices' to verify.",
+            )
+        return tool_success(output=result.stdout.strip())
     except FileNotFoundError:
-        return {
-            "success": False,
-            "error": "ADB not found",
-            "suggestion": (
+        return tool_error(
+            "ADB not found", DEPENDENCY_MISSING,
+            suggestion=(
                 "Install ADB or add it to PATH. For BlueStacks, ADB is usually "
                 "at C:\\Program Files\\BlueStacks_nxt\\HD-Adb.exe"
             ),
-        }
+        )
     except subprocess.TimeoutExpired:
-        return {
-            "success": False,
-            "error": "ADB command timed out",
-            "suggestion": "The device may be unresponsive",
-        }
+        return tool_error(
+            "ADB command timed out", TIMEOUT,
+            suggestion="The device may be unresponsive. Check connection with 'adb devices'.",
+        )
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return tool_error(str(e), OS_ERROR, suggestion="Check ADB installation and device connection")
 
 
 def adb_tap(x: int, y: int, device: str | None = None) -> dict[str, Any]:

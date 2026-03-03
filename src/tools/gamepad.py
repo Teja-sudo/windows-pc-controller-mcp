@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.utils.errors import tool_error, tool_success, DEPENDENCY_MISSING, OS_ERROR, INVALID_PARAMS
+
 try:
     import vgamepad
 except ImportError:
@@ -15,22 +17,20 @@ def gamepad_connect() -> dict[str, Any]:
     """Create a virtual Xbox 360 controller."""
     global _active_gamepad
     if vgamepad is None:
-        return {
-            "success": False,
-            "error": "vgamepad not installed",
-            "suggestion": "Install vgamepad and ViGEmBus driver: pip install vgamepad",
-        }
+        return tool_error(
+            "vgamepad not installed", DEPENDENCY_MISSING,
+            suggestion="Install vgamepad and ViGEmBus driver: pip install vgamepad",
+        )
     try:
         if _active_gamepad is not None:
-            return {"success": True, "message": "Gamepad already connected"}
+            return tool_success("Gamepad already connected")
         _active_gamepad = vgamepad.VX360Gamepad()
-        return {"success": True, "message": "Virtual Xbox 360 controller connected"}
+        return tool_success("Virtual Xbox 360 controller connected")
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "suggestion": "Ensure ViGEmBus driver is installed: https://github.com/nefarius/ViGEmBus/releases",
-        }
+        return tool_error(
+            str(e), DEPENDENCY_MISSING,
+            suggestion="Ensure ViGEmBus driver is installed: https://github.com/nefarius/ViGEmBus/releases",
+        )
 
 
 def gamepad_input(
@@ -50,7 +50,10 @@ def gamepad_input(
         right_trigger: 0.0 to 1.0
     """
     if _active_gamepad is None:
-        return {"success": False, "error": "No gamepad connected", "suggestion": "Call gamepad_connect first"}
+        return tool_error(
+            "No gamepad connected", INVALID_PARAMS,
+            suggestion="Call gamepad_connect first",
+        )
 
     try:
         # Reset all
@@ -96,21 +99,21 @@ def gamepad_input(
         _active_gamepad.right_trigger_float(value_float=max(0.0, min(1.0, right_trigger)))
 
         _active_gamepad.update()
-        return {"success": True}
+        return tool_success()
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return tool_error(str(e), OS_ERROR, suggestion="Check ViGEmBus driver is running")
 
 
 def gamepad_disconnect() -> dict[str, Any]:
     """Disconnect the virtual controller."""
     global _active_gamepad
     if _active_gamepad is None:
-        return {"success": True, "message": "No gamepad was connected"}
+        return tool_success("No gamepad was connected")
     try:
         _active_gamepad.reset()
         _active_gamepad.update()
         _active_gamepad = None
-        return {"success": True, "message": "Gamepad disconnected"}
+        return tool_success("Gamepad disconnected")
     except Exception as e:
         _active_gamepad = None
-        return {"success": False, "error": str(e)}
+        return tool_error(str(e), OS_ERROR, suggestion="Gamepad state was reset despite the error")

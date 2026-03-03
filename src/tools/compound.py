@@ -7,6 +7,7 @@ from typing import Any
 from src.tools.screen import capture_screenshot, ocr_extract_text
 from src.tools.mouse import mouse_click
 from src.utils.win32_helpers import enumerate_windows, _normalize_unicode
+from src.utils.errors import tool_error, tool_success, NOT_FOUND, INVALID_PARAMS, TIMEOUT, OS_ERROR
 
 
 def click_text(
@@ -42,19 +43,18 @@ def click_text(
         if not matches:
             # Return visible text snippet for debugging
             visible_texts = [d["text"] for d in details[:20]]
-            return {
-                "success": False,
-                "error": f"Text '{text}' not found on screen",
-                "suggestion": "Check spelling, or the text may not be visible. Use capture_screenshot to see current screen state.",
-                "visible_text_sample": visible_texts,
-            }
+            return tool_error(
+                f"Text '{text}' not found on screen", NOT_FOUND,
+                suggestion="Check spelling, or the text may not be visible. Use capture_screenshot to see current screen state.",
+                visible_text_sample=visible_texts,
+            )
 
         if occurrence > len(matches):
-            return {
-                "success": False,
-                "error": f"Only {len(matches)} occurrence(s) of '{text}' found, but occurrence={occurrence} requested",
-                "suggestion": f"Use occurrence=1 through {len(matches)}",
-            }
+            return tool_error(
+                f"Only {len(matches)} occurrence(s) of '{text}' found, but occurrence={occurrence} requested",
+                INVALID_PARAMS,
+                suggestion=f"Use occurrence=1 through {len(matches)}",
+            )
 
         # Step 3: Calculate center of the target bounding box
         target = matches[occurrence - 1]
@@ -75,19 +75,16 @@ def click_text(
         if not click_result["success"]:
             return click_result
 
-        return {
-            "success": True,
-            "clicked_text": target["text"],
-            "x": center_x,
-            "y": center_y,
-            "confidence": target.get("confidence", 0),
-        }
+        return tool_success(
+            clicked_text=target["text"],
+            x=center_x, y=center_y,
+            confidence=target.get("confidence", 0),
+        )
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "suggestion": "Try capture_screenshot + ocr_extract_text separately for debugging",
-        }
+        return tool_error(
+            str(e), OS_ERROR,
+            suggestion="Try capture_screenshot + ocr_extract_text separately for debugging",
+        )
 
 
 def wait_for_window(
@@ -105,11 +102,10 @@ def wait_for_window(
         poll_interval: Seconds between polls.
     """
     if not title and not process:
-        return {
-            "success": False,
-            "error": "Either 'title' or 'process' must be provided",
-            "suggestion": "Specify a window title or process name to wait for",
-        }
+        return tool_error(
+            "Either 'title' or 'process' must be provided", INVALID_PARAMS,
+            suggestion="Specify a window title or process name to wait for",
+        )
 
     timeout = min(timeout, 30.0)  # Cap at 30 seconds
     poll_interval = max(poll_interval, 0.2)  # Min 200ms between polls
@@ -120,30 +116,25 @@ def wait_for_window(
             windows = enumerate_windows()
             for w in windows:
                 if title and _normalize_unicode(title.lower()) in _normalize_unicode(w["title"].lower()):
-                    return {
-                        "success": True,
-                        "message": f"Window found: '{w['title']}'",
-                        "title": w["title"],
-                        "process": w["process_name"],
-                        "elapsed_seconds": round(time.monotonic() - start, 2),
-                    }
+                    return tool_success(
+                        f"Window found: '{w['title']}'",
+                        title=w["title"], process=w["process_name"],
+                        elapsed_seconds=round(time.monotonic() - start, 2),
+                    )
                 if process and process.lower() in w["process_name"].lower():
-                    return {
-                        "success": True,
-                        "message": f"Window found: '{w['title']}'",
-                        "title": w["title"],
-                        "process": w["process_name"],
-                        "elapsed_seconds": round(time.monotonic() - start, 2),
-                    }
+                    return tool_success(
+                        f"Window found: '{w['title']}'",
+                        title=w["title"], process=w["process_name"],
+                        elapsed_seconds=round(time.monotonic() - start, 2),
+                    )
             time.sleep(poll_interval)
 
         elapsed = round(time.monotonic() - start, 2)
         target = title or process
-        return {
-            "success": False,
-            "error": f"Window matching '{target}' did not appear within {timeout}s",
-            "suggestion": "Increase timeout, check the application is launching, or verify the title/process name",
-            "elapsed_seconds": elapsed,
-        }
+        return tool_error(
+            f"Window matching '{target}' did not appear within {timeout}s", TIMEOUT,
+            suggestion="Increase timeout, check the application is launching, or verify the title/process name",
+            elapsed_seconds=elapsed,
+        )
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return tool_error(str(e), OS_ERROR, suggestion="Check window title/process name spelling")

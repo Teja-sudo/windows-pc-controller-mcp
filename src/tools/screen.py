@@ -11,6 +11,7 @@ from src.utils.image_utils import pil_to_base64, find_template
 from src.utils.win32_helpers import enumerate_windows, get_window_rect_by_title, get_active_window_title
 from src.utils.dpi import get_dpi_scale_factor
 from src.security.masking import filter_windows, should_redact_window
+from src.utils.errors import tool_error, tool_success, NOT_FOUND, OS_ERROR, DEPENDENCY_MISSING
 
 # Cached RapidOCR engine — models load once, reuse across all calls
 _ocr_engine = None
@@ -29,11 +30,10 @@ def capture_screenshot(
         if window_title and not region:
             rect = get_window_rect_by_title(window_title)
             if rect is None:
-                return {
-                    "success": False,
-                    "error": f"No window found matching '{window_title}'",
-                    "suggestion": "Use list_windows to see available window titles",
-                }
+                return tool_error(
+                    f"No window found matching '{window_title}'", NOT_FOUND,
+                    suggestion="Use list_windows to see available window titles",
+                )
             region = rect
 
         with mss.mss() as sct:
@@ -61,7 +61,7 @@ def capture_screenshot(
             "active_window": get_active_window_title(),
         }
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Try specifying a different monitor index or region"}
+        return tool_error(str(e), OS_ERROR, suggestion="Try specifying a different monitor index or region")
 
 
 def _get_ocr_engine():
@@ -196,11 +196,10 @@ def ocr_extract_text(
         full_text = " ".join(item["text"] for item in extracted)
         return {"success": True, "text": full_text, "details": extracted}
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "suggestion": "Install rapidocr-onnxruntime: pip install rapidocr-onnxruntime",
-        }
+        return tool_error(
+            str(e), DEPENDENCY_MISSING,
+            suggestion="Install rapidocr-onnxruntime: pip install rapidocr-onnxruntime",
+        )
 
 
 def find_on_screen(
@@ -225,12 +224,12 @@ def find_on_screen(
         tmpl_bgr = cv2.cvtColor(tmpl_img, cv2.COLOR_RGB2BGR)
 
         if tmpl_bgr.shape[0] > screen_bgr.shape[0] or tmpl_bgr.shape[1] > screen_bgr.shape[1]:
-            return {"success": False, "error": "Template larger than screenshot", "suggestion": "Use a smaller template image"}
+            return tool_error("Template larger than screenshot", OS_ERROR, suggestion="Use a smaller template image")
 
         matches = find_template(screen_bgr, tmpl_bgr, threshold)
-        return {"success": True, "matches": matches, "count": len(matches)}
+        return tool_success(matches=matches, count=len(matches))
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Ensure template is a valid base64-encoded PNG image"}
+        return tool_error(str(e), OS_ERROR, suggestion="Ensure template is a valid base64-encoded PNG image")
 
 
 def get_pixel_color(x: int, y: int) -> dict[str, Any]:
@@ -242,7 +241,7 @@ def get_pixel_color(x: int, y: int) -> dict[str, Any]:
             r, g, b = pixel.pixel(0, 0)[:3]
         return {"success": True, "r": r, "g": g, "b": b, "hex": f"#{r:02x}{g:02x}{b:02x}"}
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Check that x,y coordinates are within screen bounds"}
+        return tool_error(str(e), OS_ERROR, suggestion="Check that x,y coordinates are within screen bounds")
 
 
 def get_screen_info() -> dict[str, Any]:
@@ -267,7 +266,7 @@ def get_screen_info() -> dict[str, Any]:
             "active_window": get_active_window_title(),
         }
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "This tool requires Windows"}
+        return tool_error(str(e), OS_ERROR, suggestion="This tool requires Windows")
 
 
 def list_windows_tool(blocked_apps: list[str] | None = None) -> dict[str, Any]:
@@ -280,6 +279,6 @@ def list_windows_tool(blocked_apps: list[str] | None = None) -> dict[str, Any]:
             {"title": w["title"], "process": w["process_name"], "position": w["rect"]}
             for w in windows
         ]
-        return {"success": True, "windows": clean, "count": len(clean)}
+        return tool_success(windows=clean, count=len(clean))
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "This tool requires Windows"}
+        return tool_error(str(e), OS_ERROR, suggestion="This tool requires Windows")

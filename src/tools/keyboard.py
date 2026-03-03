@@ -6,6 +6,8 @@ from typing import Any
 
 from pynput.keyboard import Controller, Key
 
+from src.utils.errors import tool_error, tool_success, INVALID_PARAMS, OS_ERROR
+
 
 _keyboard = Controller()
 
@@ -45,19 +47,18 @@ def keyboard_type(
 ) -> dict[str, Any]:
     """Type a string of text character by character."""
     if len(text) > max_length:
-        return {
-            "success": False,
-            "error": f"Text length {len(text)} exceeds max length {max_length}",
-            "suggestion": "Split text into smaller chunks or increase max_type_length in config",
-        }
+        return tool_error(
+            f"Text length {len(text)} exceeds max length {max_length}", INVALID_PARAMS,
+            suggestion="Use type_text for long text (auto-pastes via clipboard), or increase max_type_length in config",
+        )
     try:
         for char in text:
             _keyboard.type(char)
             if speed > 0:
                 time.sleep(speed)
-        return {"success": True, "characters_typed": len(text)}
+        return tool_success(characters_typed=len(text))
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Ensure the target window is focused before typing. Use focus_window first."}
+        return tool_error(str(e), OS_ERROR, suggestion="Ensure the target window is focused before typing. Use focus_window first.")
 
 
 def keyboard_hotkey(keys: str) -> dict[str, Any]:
@@ -65,7 +66,7 @@ def keyboard_hotkey(keys: str) -> dict[str, Any]:
     try:
         parts = [k.strip() for k in keys.split("+")]
         if not parts or any(not p for p in parts):
-            return {"success": False, "error": "Invalid hotkey format", "suggestion": "Use format: 'ctrl+c' or 'alt+tab'"}
+            return tool_error("Invalid hotkey format", INVALID_PARAMS, suggestion="Use format: 'ctrl+c' or 'alt+tab'")
         parsed = [_parse_key(k) for k in parts]
 
         for key in parsed[:-1]:
@@ -75,11 +76,11 @@ def keyboard_hotkey(keys: str) -> dict[str, Any]:
         for key in reversed(parsed[:-1]):
             _keyboard.release(key)
 
-        return {"success": True, "keys": keys}
+        return tool_success(keys=keys)
     except ValueError as e:
-        return {"success": False, "error": str(e), "suggestion": "Check key names are valid. Supported modifiers: ctrl, alt, shift, win. Example: 'ctrl+c'"}
+        return tool_error(str(e), INVALID_PARAMS, suggestion="Check key names are valid. Supported modifiers: ctrl, alt, shift, win. Example: 'ctrl+c'")
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Ensure the target window is focused. Some hotkeys may be blocked by security config."}
+        return tool_error(str(e), OS_ERROR, suggestion="Ensure the target window is focused. Some hotkeys may be blocked by security config.")
 
 
 def keyboard_press(key: str, action: str = "press") -> dict[str, Any]:
@@ -94,7 +95,7 @@ def keyboard_press(key: str, action: str = "press") -> dict[str, Any]:
             _keyboard.press(parsed)
             _keyboard.release(parsed)
         else:
-            return {"success": False, "error": f"Invalid action: {action}. Use press, release, or tap"}
-        return {"success": True, "key": key, "action": action}
+            return tool_error(f"Invalid action: {action}. Use press, release, or tap", INVALID_PARAMS)
+        return tool_success(key=key, action=action)
     except Exception as e:
-        return {"success": False, "error": str(e), "suggestion": "Check key name is valid. Supported: a-z, 0-9, enter, tab, escape, space, f1-f12, up/down/left/right"}
+        return tool_error(str(e), INVALID_PARAMS, suggestion="Check key name is valid. Supported: a-z, 0-9, enter, tab, escape, space, f1-f12, up/down/left/right")

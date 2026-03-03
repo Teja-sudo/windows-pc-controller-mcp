@@ -1,5 +1,5 @@
 # src/server.py
-"""MCP Server entry point — registers all 29 tools with security middleware."""
+"""MCP Server entry point — registers all tools with security middleware."""
 from __future__ import annotations
 
 # DPI awareness MUST be set before any screen/mouse imports
@@ -16,6 +16,7 @@ from mcp.types import Tool, TextContent, ImageContent
 from src.config import load_config, AppConfig
 from src.security.middleware import SecurityMiddleware
 from src.security.confirmation_popup import show_confirmation, ConfirmationResult
+from src.utils.context import get_context
 
 from src.tools import screen, mouse, keyboard, gamepad, adb, system, clipboard, compound
 
@@ -516,6 +517,32 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
 ]
 
 
+# ── Next-action hints — static mapping of tool → suggested follow-up tools ──
+NEXT_ACTIONS: dict[str, list[str]] = {
+    "launch_app": ["wait_for_window"],
+    "focus_window": ["capture_screenshot", "keyboard_type", "click_text"],
+    "close_window": ["list_windows"],
+    "clipboard_write": ["keyboard_hotkey('ctrl+v')"],
+    "clipboard_read": ["keyboard_type(text=...)"],
+    "capture_screenshot": ["ocr_extract_text", "click_text", "find_on_screen"],
+    "ocr_extract_text": ["click_text", "mouse_click"],
+    "mouse_move": ["mouse_click", "capture_screenshot"],
+    "mouse_click": ["capture_screenshot"],
+    "mouse_drag": ["capture_screenshot"],
+    "keyboard_type": ["capture_screenshot"],
+    "keyboard_hotkey": ["capture_screenshot"],
+    "keyboard_press": ["capture_screenshot"],
+    "click_text": ["capture_screenshot"],
+    "wait_for_window": ["focus_window", "capture_screenshot", "click_text"],
+    "get_screen_info": ["capture_screenshot", "mouse_move"],
+    "list_windows": ["focus_window", "close_window"],
+    "find_on_screen": ["mouse_click"],
+    "get_system_info": ["get_screen_info"],
+    "open_url": ["wait_for_window"],
+    "type_text": ["capture_screenshot"],
+    "window_manage": ["capture_screenshot"],
+}
+
 _SCROLL_DIRECTION_MAP = {
     "up": (0, 1),
     "down": (0, -1),
@@ -699,6 +726,13 @@ def create_server() -> Server:
             None,
             lambda: _dispatch_tool(name, arguments, config),
         )
+
+        # ── Enrich response with context + next-action hints ──
+        if result.get("success"):
+            result["_context"] = get_context()
+            hints = NEXT_ACTIONS.get(name)
+            if hints:
+                result["_next"] = hints
 
         # Handle screenshot results — return as image
         if name == "capture_screenshot" and result.get("success") and "image_base64" in result:
