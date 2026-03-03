@@ -490,6 +490,238 @@
       gap: 0.75rem;
     }
 
+    /* ── Audit Log Tab ───────────────────────────────────────── */
+    .audit-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.75rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .stat-card .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      line-height: 1.2;
+    }
+
+    .stat-card .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-card .stat-tool-name {
+      font-size: 0.8125rem;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      color: var(--text);
+      word-break: break-all;
+      line-height: 1.3;
+    }
+
+    .charts-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+    }
+
+    .chart-card .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .chart-card .card-title {
+      font-size: 0.9375rem;
+      font-weight: 600;
+    }
+
+    .chart-card canvas {
+      width: 100% !important;
+      max-height: 260px;
+    }
+
+    .audit-table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+    }
+
+    .audit-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .audit-table-header .card-title {
+      font-size: 0.9375rem;
+      font-weight: 600;
+    }
+
+    .audit-table-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .audit-table-actions sl-switch {
+      --width: 36px;
+      --height: 20px;
+      --thumb-size: 16px;
+    }
+
+    .live-tail-label {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .audit-filters {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .audit-filters sl-select {
+      min-width: 160px;
+    }
+
+    .audit-filters sl-select::part(combobox) {
+      background: transparent;
+      border-color: var(--border);
+    }
+
+    .audit-filters sl-input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .audit-filters sl-input::part(base) {
+      background: transparent;
+      border-color: var(--border);
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .audit-table thead th {
+      text-align: left;
+      padding: 0.625rem 0.75rem;
+      border-bottom: 2px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.6875rem;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .audit-table tbody td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .audit-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .audit-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .audit-table .col-time {
+      white-space: nowrap;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.75rem;
+    }
+
+    .audit-table .col-tool {
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      color: var(--accent);
+    }
+
+    .audit-table .col-params {
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      cursor: default;
+    }
+
+    .audit-table .col-reason {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .audit-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .audit-pagination .page-info {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .audit-pagination .page-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .audit-empty-state {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
     /* ── Responsive ────────────────────────────────────────── */
     @media (max-width: 768px) {
       .container {
@@ -503,6 +735,29 @@
 
       .card {
         padding: 1rem;
+      }
+
+      .stats-bar {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .charts-container {
+        grid-template-columns: 1fr;
+      }
+
+      .audit-filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .audit-filters sl-select {
+        min-width: unset;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
       }
     }
   </style>
@@ -576,9 +831,123 @@
 
           <!-- ── Tab 4: Audit Log ──────────────────────────── -->
           <sl-tab-panel name="audit-log">
-            <!-- Audit Log tab content (Task 8) -->
-            <div class="tab-placeholder">
-              Audit log viewer will appear here.
+            <div class="audit-container" id="auditContainer">
+
+              <!-- Stats Bar -->
+              <div class="stats-bar" id="auditStatsBar">
+                <div class="stat-card">
+                  <span class="stat-value" id="statTotalCalls">--</span>
+                  <span class="stat-label">Total Calls</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value text-success" id="statAllowed">--</span>
+                  <span class="stat-label">Allowed</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value text-danger" id="statDenied">--</span>
+                  <span class="stat-label">Denied</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="statDenyRate">--</span>
+                  <span class="stat-label">Deny Rate</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-tool-name" id="statMostUsed">--</span>
+                  <span class="stat-label">Most Used Tool</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-tool-name" id="statMostDenied">--</span>
+                  <span class="stat-label">Most Denied Tool</span>
+                </div>
+              </div>
+
+              <!-- Charts -->
+              <div class="charts-container">
+                <div class="chart-card">
+                  <div class="card-header">
+                    <span class="card-title">Calls Over Time</span>
+                    <sl-radio-group id="auditTimeRange" value="24">
+                      <sl-radio-button value="24" size="small">24h</sl-radio-button>
+                      <sl-radio-button value="168" size="small">7d</sl-radio-button>
+                    </sl-radio-group>
+                  </div>
+                  <canvas id="chartCallsOverTime"></canvas>
+                </div>
+                <div class="chart-card">
+                  <div class="card-header">
+                    <span class="card-title">Denials by Tool</span>
+                  </div>
+                  <canvas id="chartDenialsByTool"></canvas>
+                </div>
+              </div>
+
+              <!-- Table -->
+              <div class="audit-table-container">
+                <div class="audit-table-header">
+                  <span class="card-title">Audit Entries</span>
+                  <div class="audit-table-actions">
+                    <div class="live-tail-label">
+                      <sl-switch id="auditLiveTail" size="small"></sl-switch>
+                      Live Tail
+                    </div>
+                    <sl-button id="auditExportCsv" variant="default" size="small">
+                      <sl-icon slot="prefix" name="download"></sl-icon>
+                      Export CSV
+                    </sl-button>
+                  </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="audit-filters">
+                  <sl-select id="auditFilterTool" placeholder="All Tools" size="small" clearable>
+                    <!-- Options populated by JS -->
+                  </sl-select>
+                  <sl-select id="auditFilterStatus" placeholder="All Statuses" size="small" clearable>
+                    <sl-option value="allowed">Allowed</sl-option>
+                    <sl-option value="denied">Denied</sl-option>
+                  </sl-select>
+                  <sl-input id="auditFilterSearch" placeholder="Search parameters..." size="small" clearable>
+                    <sl-icon slot="prefix" name="search"></sl-icon>
+                  </sl-input>
+                </div>
+
+                <!-- Table -->
+                <div style="overflow-x: auto;">
+                  <table class="audit-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Tool</th>
+                        <th>Parameters</th>
+                        <th>Status</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                      <!-- Populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
+                <div id="auditEmptyState" class="audit-empty-state" style="display: none;">
+                  No audit entries found.
+                </div>
+
+                <!-- Pagination -->
+                <div class="audit-pagination">
+                  <span class="page-info" id="auditPageInfo">--</span>
+                  <div class="page-buttons">
+                    <sl-button id="auditPrevPage" variant="default" size="small" disabled>
+                      <sl-icon slot="prefix" name="chevron-left"></sl-icon>
+                      Previous
+                    </sl-button>
+                    <sl-button id="auditNextPage" variant="default" size="small" disabled>
+                      Next
+                      <sl-icon slot="suffix" name="chevron-right"></sl-icon>
+                    </sl-button>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </sl-tab-panel>
         </sl-tab-group>
@@ -1479,6 +1848,449 @@
     // ── Listen for config-loaded (Rate Limits) ──────────────
     window.addEventListener('config-loaded', () => {
       renderRateLimitsTab();
+    });
+
+    // ── Audit Log Tab ─────────────────────────────────────
+
+    // Chart.js dark theme defaults
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#334155';
+
+    // Module-level chart instances (update in-place, never recreate)
+    let callsOverTimeChart = null;
+    let denialsByToolChart = null;
+
+    // Live tail interval reference
+    let liveTailInterval = null;
+
+    // Current audit entries (for CSV export)
+    let currentAuditEntries = [];
+
+    /**
+     * Load audit data (entries + stats) and render everything.
+     */
+    async function loadAudit() {
+      try {
+        const params = new URLSearchParams({
+          limit: String(state.auditLimit),
+          offset: String(state.auditOffset),
+        });
+        if (state.auditToolFilter) params.set('tool', state.auditToolFilter);
+        if (state.auditStatusFilter) params.set('status', state.auditStatusFilter);
+        if (state.auditSearch) params.set('search', state.auditSearch);
+
+        const [entriesRes, statsRes] = await Promise.all([
+          fetch(`${API}/api/audit?${params}`).then(r => r.json()),
+          fetch(`${API}/api/audit/stats?hours=${state.auditHours}`).then(r => r.json()),
+        ]);
+
+        currentAuditEntries = entriesRes.entries || [];
+        renderAuditStats(statsRes);
+        renderAuditCharts(statsRes);
+        renderAuditTable(entriesRes);
+        populateToolFilter(statsRes.tool_counts || {});
+      } catch (err) {
+        console.error('Failed to load audit data:', err);
+      }
+    }
+
+    /**
+     * Render the 6 stat cards from stats data.
+     */
+    function renderAuditStats(stats) {
+      document.getElementById('statTotalCalls').textContent =
+        (stats.total_calls ?? 0).toLocaleString();
+      document.getElementById('statAllowed').textContent =
+        (stats.allowed ?? 0).toLocaleString();
+      document.getElementById('statDenied').textContent =
+        (stats.denied ?? 0).toLocaleString();
+
+      const denyRate = stats.deny_rate ?? 0;
+      document.getElementById('statDenyRate').textContent =
+        denyRate.toFixed(1) + '%';
+
+      document.getElementById('statMostUsed').textContent =
+        stats.most_used_tool || 'N/A';
+      document.getElementById('statMostDenied').textContent =
+        stats.most_denied_tool || 'N/A';
+    }
+
+    /**
+     * Create or update Chart.js charts from stats data.
+     */
+    function renderAuditCharts(stats) {
+      // ── Calls Over Time (line chart) ──────────────────
+      const timeline = stats.timeline || [];
+      const timeLabels = timeline.map(t => {
+        const d = new Date(t.hour);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      });
+      const allowedData = timeline.map(t => t.allowed ?? 0);
+      const deniedData = timeline.map(t => t.denied ?? 0);
+
+      const cotCanvas = document.getElementById('chartCallsOverTime');
+      if (!callsOverTimeChart) {
+        callsOverTimeChart = new Chart(cotCanvas.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: timeLabels,
+            datasets: [
+              {
+                label: 'Allowed',
+                data: allowedData,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+              },
+              {
+                label: 'Denied',
+                data: deniedData,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { usePointStyle: true, padding: 16 },
+              },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { maxTicksLimit: 12, font: { size: 10 } },
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0, font: { size: 10 } },
+              },
+            },
+          },
+        });
+      } else {
+        callsOverTimeChart.data.labels = timeLabels;
+        callsOverTimeChart.data.datasets[0].data = allowedData;
+        callsOverTimeChart.data.datasets[1].data = deniedData;
+        callsOverTimeChart.update();
+      }
+
+      // ── Denials by Tool (horizontal bar chart) ────────
+      const denialsByTool = stats.denials_by_tool || {};
+      const toolNames = Object.keys(denialsByTool);
+      const denialCounts = Object.values(denialsByTool);
+
+      const dbtCanvas = document.getElementById('chartDenialsByTool');
+      if (!denialsByToolChart) {
+        denialsByToolChart = new Chart(dbtCanvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: toolNames,
+            datasets: [
+              {
+                label: 'Denials',
+                data: denialCounts,
+                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                borderColor: '#ef4444',
+                borderWidth: 1,
+                borderRadius: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: { precision: 0, font: { size: 10 } },
+              },
+              y: {
+                ticks: {
+                  font: { size: 10, family: "'SF Mono', 'Cascadia Code', monospace" },
+                },
+              },
+            },
+          },
+        });
+      } else {
+        denialsByToolChart.data.labels = toolNames;
+        denialsByToolChart.data.datasets[0].data = denialCounts;
+        denialsByToolChart.update();
+      }
+    }
+
+    /**
+     * Render the audit entries table.
+     */
+    function renderAuditTable(data) {
+      const tbody = document.getElementById('auditTableBody');
+      const emptyState = document.getElementById('auditEmptyState');
+      const entries = data.entries || [];
+      const total = data.total || 0;
+
+      tbody.replaceChildren();
+
+      if (entries.length === 0) {
+        emptyState.style.display = 'block';
+        tbody.parentElement.style.display = 'none';
+      } else {
+        emptyState.style.display = 'none';
+        tbody.parentElement.style.display = '';
+
+        for (const entry of entries) {
+          const tr = document.createElement('tr');
+
+          // Time column
+          const tdTime = document.createElement('td');
+          tdTime.className = 'col-time';
+          tdTime.textContent = entry.timestamp
+            ? new Date(entry.timestamp).toLocaleString()
+            : '--';
+          tr.appendChild(tdTime);
+
+          // Tool column
+          const tdTool = document.createElement('td');
+          tdTool.className = 'col-tool';
+          tdTool.textContent = entry.tool || '--';
+          tr.appendChild(tdTool);
+
+          // Parameters column (truncated with tooltip)
+          const tdParams = document.createElement('td');
+          tdParams.className = 'col-params';
+          const paramsStr = entry.parameters
+            ? (typeof entry.parameters === 'string'
+                ? entry.parameters
+                : JSON.stringify(entry.parameters))
+            : '';
+          const truncated = paramsStr.length > 50
+            ? paramsStr.substring(0, 50) + '...'
+            : paramsStr;
+          tdParams.textContent = truncated;
+          if (paramsStr.length > 50) {
+            tdParams.title = paramsStr;
+            // Initialize Tippy.js if available
+            if (typeof tippy === 'function') {
+              tippy(tdParams, {
+                content: paramsStr,
+                theme: 'material',
+                placement: 'top',
+                maxWidth: 400,
+                delay: [200, 0],
+              });
+            }
+          }
+          tr.appendChild(tdParams);
+
+          // Status column (badge)
+          const tdStatus = document.createElement('td');
+          const badge = document.createElement('sl-badge');
+          const isAllowed = entry.status === 'allowed';
+          badge.variant = isAllowed ? 'success' : 'danger';
+          badge.textContent = isAllowed ? 'Allowed' : 'Denied';
+          tdStatus.appendChild(badge);
+          tr.appendChild(tdStatus);
+
+          // Reason column
+          const tdReason = document.createElement('td');
+          tdReason.className = 'col-reason';
+          tdReason.textContent = entry.reason || '';
+          if (entry.reason && entry.reason.length > 40) {
+            tdReason.title = entry.reason;
+          }
+          tr.appendChild(tdReason);
+
+          tbody.appendChild(tr);
+        }
+      }
+
+      // Update pagination
+      updateAuditPagination(total);
+    }
+
+    /**
+     * Update pagination controls.
+     */
+    function updateAuditPagination(total) {
+      const pageInfo = document.getElementById('auditPageInfo');
+      const prevBtn = document.getElementById('auditPrevPage');
+      const nextBtn = document.getElementById('auditNextPage');
+
+      const start = total === 0 ? 0 : state.auditOffset + 1;
+      const end = Math.min(state.auditOffset + state.auditLimit, total);
+      pageInfo.textContent = `Showing ${start}-${end} of ${total.toLocaleString()}`;
+
+      prevBtn.disabled = state.auditOffset === 0;
+      nextBtn.disabled = state.auditOffset + state.auditLimit >= total;
+    }
+
+    /**
+     * Populate the tool filter dropdown from stats data.
+     */
+    function populateToolFilter(toolCounts) {
+      const select = document.getElementById('auditFilterTool');
+      const currentValue = select.value;
+
+      // Clear existing options
+      select.replaceChildren();
+
+      // Add tool options sorted by count (descending)
+      const sorted = Object.entries(toolCounts)
+        .sort((a, b) => b[1] - a[1]);
+
+      for (const [tool, count] of sorted) {
+        const option = document.createElement('sl-option');
+        option.value = tool;
+        option.textContent = `${tool} (${count})`;
+        select.appendChild(option);
+      }
+
+      // Restore previous selection if still valid
+      if (currentValue && toolCounts[currentValue] !== undefined) {
+        select.value = currentValue;
+      }
+    }
+
+    /**
+     * Export current audit entries as CSV.
+     */
+    function exportAuditCsv() {
+      if (currentAuditEntries.length === 0) return;
+
+      const headers = ['Time', 'Tool', 'Parameters', 'Status', 'Reason'];
+      const rows = currentAuditEntries.map(entry => {
+        const ts = entry.timestamp
+          ? new Date(entry.timestamp).toISOString()
+          : '';
+        const params = entry.parameters
+          ? (typeof entry.parameters === 'string'
+              ? entry.parameters
+              : JSON.stringify(entry.parameters))
+          : '';
+        // Escape CSV fields: wrap in quotes if contains comma, newline, or quote
+        const escapeCsv = (val) => {
+          const s = String(val);
+          if (s.includes(',') || s.includes('\n') || s.includes('"')) {
+            return '"' + s.replace(/"/g, '""') + '"';
+          }
+          return s;
+        };
+        return [
+          escapeCsv(ts),
+          escapeCsv(entry.tool || ''),
+          escapeCsv(params),
+          escapeCsv(entry.status || ''),
+          escapeCsv(entry.reason || ''),
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // ── Audit Log Event Listeners ─────────────────────────
+
+    // Time range toggle for chart
+    document.getElementById('auditTimeRange').addEventListener('sl-change', (e) => {
+      state.auditHours = Number(e.target.value);
+      loadAudit();
+    });
+
+    // Filter: tool
+    document.getElementById('auditFilterTool').addEventListener('sl-change', (e) => {
+      state.auditToolFilter = e.target.value || '';
+      state.auditOffset = 0;
+      loadAudit();
+    });
+
+    // Filter: status
+    document.getElementById('auditFilterStatus').addEventListener('sl-change', (e) => {
+      state.auditStatusFilter = e.target.value || '';
+      state.auditOffset = 0;
+      loadAudit();
+    });
+
+    // Filter: search (debounced)
+    {
+      let searchTimeout = null;
+      document.getElementById('auditFilterSearch').addEventListener('sl-input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          state.auditSearch = e.target.value || '';
+          state.auditOffset = 0;
+          loadAudit();
+        }, 300);
+      });
+
+      // Also handle clear event
+      document.getElementById('auditFilterSearch').addEventListener('sl-clear', () => {
+        clearTimeout(searchTimeout);
+        state.auditSearch = '';
+        state.auditOffset = 0;
+        loadAudit();
+      });
+    }
+
+    // Pagination: previous
+    document.getElementById('auditPrevPage').addEventListener('click', () => {
+      state.auditOffset = Math.max(0, state.auditOffset - state.auditLimit);
+      loadAudit();
+    });
+
+    // Pagination: next
+    document.getElementById('auditNextPage').addEventListener('click', () => {
+      state.auditOffset += state.auditLimit;
+      loadAudit();
+    });
+
+    // CSV export
+    document.getElementById('auditExportCsv').addEventListener('click', exportAuditCsv);
+
+    // Live tail toggle
+    document.getElementById('auditLiveTail').addEventListener('sl-change', (e) => {
+      if (e.target.checked) {
+        // Start live tail: refresh every 5 seconds
+        liveTailInterval = setInterval(() => {
+          loadAudit();
+        }, 5000);
+      } else {
+        // Stop live tail
+        if (liveTailInterval) {
+          clearInterval(liveTailInterval);
+          liveTailInterval = null;
+        }
+      }
+    });
+
+    // ── Listen for config-loaded (Audit Log) ────────────────
+    window.addEventListener('config-loaded', () => {
+      loadAudit();
     });
 
     // ── Init ──────────────────────────────────────────────
