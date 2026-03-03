@@ -83,3 +83,50 @@ class TestConfigLoader:
 
         with pytest.raises(Exception):
             load_config(default_path=str(default_yaml), user_path=None)
+
+    def test_missing_default_file_uses_factory_defaults(self, tmp_path):
+        """Missing default.yaml falls back to Pydantic factory defaults."""
+        from src.config import load_config
+
+        config = load_config(
+            default_path=str(tmp_path / "nonexistent.yaml"),
+            user_path=None,
+        )
+        assert config.security.enabled is True
+        assert config.security.confirmation_timeout_seconds == 60
+        assert len(config.tools) == 0
+
+    def test_empty_yaml_file_uses_factory_defaults(self, tmp_path):
+        """Empty YAML file falls back to factory defaults."""
+        from src.config import load_config
+
+        default_yaml = tmp_path / "default.yaml"
+        default_yaml.write_text("")
+
+        config = load_config(default_path=str(default_yaml), user_path=None)
+        assert config.security.enabled is True
+
+    def test_missing_user_file_ignored(self, tmp_path):
+        """Non-existent user config file is silently ignored."""
+        from src.config import load_config
+
+        default_yaml = tmp_path / "default.yaml"
+        default_yaml.write_text(yaml.dump({"security": {"enabled": True}}))
+
+        config = load_config(
+            default_path=str(default_yaml),
+            user_path=str(tmp_path / "nonexistent.yaml"),
+        )
+        assert config.security.enabled is True
+
+    def test_invalid_apps_mode_raises(self, tmp_path):
+        """Invalid apps.mode value raises validation error."""
+        from src.config import load_config
+
+        default_yaml = tmp_path / "default.yaml"
+        default_yaml.write_text(yaml.dump({
+            "security": {"apps": {"mode": "invalid_mode"}},
+        }))
+
+        with pytest.raises(Exception):
+            load_config(default_path=str(default_yaml), user_path=None)

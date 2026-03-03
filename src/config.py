@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -39,7 +39,7 @@ class KeyboardSecurityConfig(BaseModel):
 
 
 class AppsConfig(BaseModel):
-    mode: str = "allowlist"
+    mode: Literal["allowlist", "blocklist"] = "allowlist"
     allowed: list[str] = Field(default_factory=list)
 
 
