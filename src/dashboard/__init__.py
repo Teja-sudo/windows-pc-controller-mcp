@@ -1,7 +1,10 @@
 """Settings Dashboard — FastAPI backend for config management and audit viewing."""
 from __future__ import annotations
 
+import json
 import webbrowser
+from collections import Counter
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,21 @@ LOG_DIR = Path(__file__).parent.parent.parent / "logs"
 DEFAULT_YAML = CONFIG_DIR / "default.yaml"
 USER_YAML = CONFIG_DIR / "config.yaml"
 AUDIT_LOG = LOG_DIR / "audit.log"
+
+
+def _read_audit_entries() -> list[dict]:
+    """Read all entries from the audit log file."""
+    if not AUDIT_LOG.exists():
+        return []
+    entries = []
+    for line in AUDIT_LOG.read_text(encoding="utf-8").strip().split("\n"):
+        line = line.strip()
+        if line:
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
 
 
 def create_app() -> FastAPI:
@@ -73,6 +91,85 @@ def create_app() -> FastAPI:
         result = config.model_dump()
         result["_has_user_config"] = False
         return result
+
+    @app.get("/api/audit")
+    async def get_audit(
+        limit: int = 100,
+        offset: int = 0,
+        tool: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ):
+        entries = _read_audit_entries()
+        # Newest first
+        entries.reverse()
+        # Filter
+        if tool:
+            entries = [e for e in entries if e.get("tool") == tool]
+        if status == "allowed":
+            entries = [e for e in entries if e.get("allowed") is True]
+        elif status == "denied":
+            entries = [e for e in entries if e.get("allowed") is False]
+        if search:
+            search_lower = search.lower()
+            entries = [e for e in entries if search_lower in json.dumps(e).lower()]
+        total = len(entries)
+        page = entries[offset:offset + limit]
+        return {"entries": page, "total": total, "limit": limit, "offset": offset}
+
+    @app.get("/api/audit/stats")
+    async def get_audit_stats(hours: int = 24):
+        entries = _read_audit_entries()
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        # Filter by time window
+        recent = []
+        for e in entries:
+            try:
+                ts = datetime.fromisoformat(e["timestamp"])
+                if ts >= cutoff:
+                    recent.append(e)
+            except (KeyError, ValueError):
+                continue
+
+        total = len(recent)
+        allowed = sum(1 for e in recent if e.get("allowed"))
+        denied = total - allowed
+        deny_rate = round((denied / total * 100), 1) if total > 0 else 0
+
+        tool_counts = Counter(e.get("tool", "unknown") for e in recent)
+        denial_counts = Counter(
+            e.get("tool", "unknown") for e in recent if not e.get("allowed")
+        )
+
+        most_used = tool_counts.most_common(1)[0][0] if tool_counts else None
+        most_denied = denial_counts.most_common(1)[0][0] if denial_counts else None
+
+        # Build hourly timeline
+        timeline: dict[str, dict] = {}
+        for e in recent:
+            try:
+                ts = datetime.fromisoformat(e["timestamp"])
+                hour_key = ts.strftime("%Y-%m-%dT%H:00")
+                if hour_key not in timeline:
+                    timeline[hour_key] = {"hour": hour_key, "allowed": 0, "denied": 0}
+                if e.get("allowed"):
+                    timeline[hour_key]["allowed"] += 1
+                else:
+                    timeline[hour_key]["denied"] += 1
+            except (KeyError, ValueError):
+                continue
+
+        return {
+            "total_calls": total,
+            "allowed": allowed,
+            "denied": denied,
+            "deny_rate": deny_rate,
+            "most_used_tool": most_used,
+            "most_denied_tool": most_denied,
+            "timeline": sorted(timeline.values(), key=lambda x: x["hour"]),
+            "denials_by_tool": dict(denial_counts.most_common()),
+            "tool_counts": dict(tool_counts.most_common()),
+        }
 
     return app
 
