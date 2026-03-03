@@ -198,6 +198,15 @@ class TestDispatchTool:
         _dispatch_tool("mouse_scroll", {"dy": -3}, config)
         mock_fn.assert_called_once_with(dx=0, dy=-3)
 
+    @patch("src.tools.mouse.mouse_scroll")
+    def test_dispatches_mouse_scroll_direction(self, mock_fn):
+        from src.server import _dispatch_tool
+
+        mock_fn.return_value = {"success": True}
+        config = _make_config()
+        _dispatch_tool("mouse_scroll", {"direction": "down", "clicks": 5}, config)
+        mock_fn.assert_called_once_with(dx=0, dy=-5)
+
     @patch("src.tools.keyboard.keyboard_type")
     def test_dispatches_keyboard_type_with_max_length(self, mock_fn):
         from src.server import _dispatch_tool
@@ -374,6 +383,42 @@ class TestDispatchTool:
         config = _make_config()
         _dispatch_tool("clipboard_write", {"text": "world"}, config)
         mock_fn.assert_called_once_with(text="world")
+
+
+# ===========================================================================
+# 3b. Scroll params helper
+# ===========================================================================
+
+class TestScrollParams:
+    """Test the _scroll_params direction/clicks → dx/dy conversion."""
+
+    def test_direction_down(self):
+        from src.server import _scroll_params
+        assert _scroll_params({"direction": "down", "clicks": 5}) == {"dx": 0, "dy": -5}
+
+    def test_direction_up(self):
+        from src.server import _scroll_params
+        assert _scroll_params({"direction": "up", "clicks": 3}) == {"dx": 0, "dy": 3}
+
+    def test_direction_left(self):
+        from src.server import _scroll_params
+        assert _scroll_params({"direction": "left", "clicks": 2}) == {"dx": -2, "dy": 0}
+
+    def test_direction_right(self):
+        from src.server import _scroll_params
+        assert _scroll_params({"direction": "right", "clicks": 4}) == {"dx": 4, "dy": 0}
+
+    def test_direction_default_clicks(self):
+        from src.server import _scroll_params
+        assert _scroll_params({"direction": "down"}) == {"dx": 0, "dy": -3}
+
+    def test_fallback_to_raw_dx_dy(self):
+        from src.server import _scroll_params
+        assert _scroll_params({"dx": 2, "dy": -4}) == {"dx": 2, "dy": -4}
+
+    def test_empty_params_fallback(self):
+        from src.server import _scroll_params
+        assert _scroll_params({}) == {"dx": 0, "dy": 0}
 
 
 # ===========================================================================

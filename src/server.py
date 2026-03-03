@@ -188,16 +188,17 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "mouse_scroll",
         "description": (
-            "Scroll the mouse wheel vertically or horizontally at the current cursor position. "
-            "Positive dy scrolls up, negative dy scrolls down. Each unit is one scroll 'click'. "
+            "Scroll the mouse wheel at the current cursor position. "
+            "Use direction + clicks for simple scrolling (e.g., direction='down', clicks=5). "
             "Move the mouse to the target area first with mouse_move before scrolling."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "dx": {"type": "integer", "default": 0, "description": "Horizontal scroll (positive=right, negative=left)"},
-                "dy": {"type": "integer", "default": 0, "description": "Vertical scroll (positive=up, negative=down). Use -3 to -5 for a page-like scroll."},
+                "direction": {"type": "string", "enum": ["up", "down", "left", "right"], "description": "Scroll direction. Use this with 'clicks' for simple scrolling."},
+                "clicks": {"type": "integer", "default": 3, "description": "Number of scroll steps (1-10). Each click is one notch of the scroll wheel."},
             },
+            "required": ["direction"],
         },
     },
     {
@@ -515,6 +516,24 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
 ]
 
 
+_SCROLL_DIRECTION_MAP = {
+    "up": (0, 1),
+    "down": (0, -1),
+    "left": (-1, 0),
+    "right": (1, 0),
+}
+
+
+def _scroll_params(params: dict[str, Any]) -> dict[str, int]:
+    """Convert direction/clicks to dx/dy for mouse_scroll."""
+    direction = params.get("direction")
+    if direction and direction in _SCROLL_DIRECTION_MAP:
+        clicks = params.get("clicks", 3)
+        base_dx, base_dy = _SCROLL_DIRECTION_MAP[direction]
+        return {"dx": base_dx * clicks, "dy": base_dy * clicks}
+    return {"dx": params.get("dx", 0), "dy": params.get("dy", 0)}
+
+
 # --- Tool dispatcher ---
 
 def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) -> dict[str, Any]:
@@ -553,7 +572,7 @@ def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) ->
             button=params.get("button", "left"), duration=params.get("duration", 0.5),
         ),
         "mouse_scroll": lambda: mouse.mouse_scroll(
-            dx=params.get("dx", 0), dy=params.get("dy", 0),
+            **_scroll_params(params),
         ),
         "mouse_position": lambda: mouse.mouse_position(),
 

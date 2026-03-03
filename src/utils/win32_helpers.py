@@ -1,6 +1,7 @@
 """Windows API wrappers for window enumeration and management."""
 from __future__ import annotations
 
+import ctypes
 import re
 import unicodedata
 from typing import Any
@@ -75,37 +76,76 @@ def get_window_rect_by_title(title_substring: str) -> dict[str, int] | None:
     return None
 
 
+def _force_foreground(hwnd: int) -> bool:
+    """Reliably bring a window to the foreground.
+
+    Windows restricts SetForegroundWindow to the foreground process.
+    Workaround: simulate an ALT keypress so our process satisfies the
+    "received the last input event" condition, then attach to the
+    foreground thread briefly to gain focus-change permission.
+
+    See: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow
+    """
+    try:
+        # Step 1: Restore the window if it is minimized
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+
+        # Step 2: Simulate ALT key to satisfy "received last input event"
+        ctypes.windll.user32.keybd_event(0x12, 0, 0, 0)  # ALT down
+        ctypes.windll.user32.keybd_event(0x12, 0, 2, 0)  # ALT up
+
+        # Step 3: Attach to the foreground thread to gain permission
+        foreground_hwnd = win32gui.GetForegroundWindow()
+        if foreground_hwnd:
+            fg_thread, _ = win32process.GetWindowThreadProcessId(foreground_hwnd)
+            our_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+            if fg_thread != our_thread:
+                ctypes.windll.user32.AttachThreadInput(our_thread, fg_thread, True)
+                try:
+                    win32gui.SetForegroundWindow(hwnd)
+                finally:
+                    ctypes.windll.user32.AttachThreadInput(our_thread, fg_thread, False)
+            else:
+                win32gui.SetForegroundWindow(hwnd)
+        else:
+            win32gui.SetForegroundWindow(hwnd)
+
+        # Step 4: Verify the window actually came to the foreground
+        if win32gui.GetForegroundWindow() == hwnd:
+            return True
+
+        # Fallback: BringWindowToTop (less reliable but sometimes works)
+        win32gui.BringWindowToTop(hwnd)
+        return True
+    except Exception:
+        # Last resort: at least try to make the window visible
+        try:
+            win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+            win32gui.BringWindowToTop(hwnd)
+            return True
+        except Exception:
+            return False
+
+
 def focus_window_by_title(title_substring: str) -> bool:
     """Bring a window matching the title substring to the foreground.
 
     Uses Unicode normalization to handle zero-width characters in window titles.
     """
-    try:
-        needle = _normalize_unicode(title_substring.lower())
-        for w in enumerate_windows():
-            if needle in _normalize_unicode(w["title"].lower()):
-                hwnd = w["hwnd"]
-                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                win32gui.SetForegroundWindow(hwnd)
-                return True
-        return False
-    except Exception:
-        return False
+    needle = _normalize_unicode(title_substring.lower())
+    for w in enumerate_windows():
+        if needle in _normalize_unicode(w["title"].lower()):
+            return _force_foreground(w["hwnd"])
+    return False
 
 
 def focus_window_by_process(process_name: str) -> bool:
     """Bring a window matching the process name to the foreground."""
-    try:
-        needle = process_name.lower()
-        for w in enumerate_windows():
-            if needle in w["process_name"].lower():
-                hwnd = w["hwnd"]
-                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                win32gui.SetForegroundWindow(hwnd)
-                return True
-        return False
-    except Exception:
-        return False
+    needle = process_name.lower()
+    for w in enumerate_windows():
+        if needle in w["process_name"].lower():
+            return _force_foreground(w["hwnd"])
+    return False
 
 
 def close_window_by_title(title_substring: str) -> bool:
