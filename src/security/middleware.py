@@ -12,6 +12,8 @@ from src.security.rate_limiter import RateLimiter
 
 
 # Map tool names to rate limit categories
+# System and clipboard tools are not rate-limited by default (no config entry),
+# but are mapped here for completeness. Add rate limits in config if needed.
 TOOL_CATEGORY = {
     "mouse_move": "mouse", "mouse_click": "mouse", "mouse_drag": "mouse",
     "mouse_scroll": "mouse", "mouse_position": "mouse",
@@ -20,6 +22,9 @@ TOOL_CATEGORY = {
     "find_on_screen": "screenshot", "get_pixel_color": "screenshot", "list_windows": "screenshot",
     "adb_tap": "adb", "adb_swipe": "adb", "adb_key_event": "adb", "adb_shell": "adb",
     "gamepad_connect": "gamepad", "gamepad_input": "gamepad", "gamepad_disconnect": "gamepad",
+    "launch_app": "system", "focus_window": "system", "close_window": "system",
+    "get_system_info": "system",
+    "clipboard_read": "clipboard", "clipboard_write": "clipboard",
 }
 
 
