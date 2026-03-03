@@ -19,7 +19,7 @@ from src.security.confirmation_popup import show_confirmation, ConfirmationResul
 from src.utils.context import get_context
 from src.utils.params import normalize_params
 
-from src.tools import screen, mouse, keyboard, gamepad, adb, system, clipboard, compound
+from src.tools import screen, mouse, keyboard, gamepad, adb, system, clipboard, compound, targeting
 
 
 # --- Tool definitions ---
@@ -38,14 +38,14 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "monitor": {"type": "integer", "description": "Monitor index: 0=all screens combined, 1=primary, 2=secondary, etc.", "default": 0},
+                "monitor": {"type": "number", "description": "Monitor index: 0=all screens combined, 1=primary, 2=secondary, etc.", "default": 0},
                 "region": {
                     "type": "object",
                     "properties": {
-                        "left": {"type": "integer"},
-                        "top": {"type": "integer"},
-                        "width": {"type": "integer"},
-                        "height": {"type": "integer"},
+                        "left": {"type": "number"},
+                        "top": {"type": "number"},
+                        "width": {"type": "number"},
+                        "height": {"type": "number"},
                     },
                     "description": "Capture a specific pixel region. Coordinates are in screen pixels.",
                 },
@@ -66,14 +66,14 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "region": {
                     "type": "object",
                     "properties": {
-                        "left": {"type": "integer"},
-                        "top": {"type": "integer"},
-                        "width": {"type": "integer"},
-                        "height": {"type": "integer"},
+                        "left": {"type": "number"},
+                        "top": {"type": "number"},
+                        "width": {"type": "number"},
+                        "height": {"type": "number"},
                     },
                     "description": "Limit OCR to this screen region for faster results",
                 },
-                "monitor": {"type": "integer", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
+                "monitor": {"type": "number", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
             },
         },
     },
@@ -90,7 +90,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "properties": {
                 "template_base64": {"type": "string", "description": "Base64-encoded PNG of the image to find on screen"},
                 "threshold": {"type": "number", "default": 0.8, "description": "Match confidence threshold (0.0-1.0). Lower values find more matches but with less precision."},
-                "monitor": {"type": "integer", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
+                "monitor": {"type": "number", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
             },
             "required": ["template_base64"],
         },
@@ -105,8 +105,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer", "description": "X coordinate in screen pixels"},
-                "y": {"type": "integer", "description": "Y coordinate in screen pixels"},
+                "x": {"type": "number", "description": "X coordinate in screen pixels"},
+                "y": {"type": "number", "description": "Y coordinate in screen pixels"},
             },
             "required": ["x", "y"],
         },
@@ -142,8 +142,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer", "description": "X coordinate (absolute) or X offset (relative)"},
-                "y": {"type": "integer", "description": "Y coordinate (absolute) or Y offset (relative)"},
+                "x": {"type": "number", "description": "X coordinate (absolute) or X offset (relative)"},
+                "y": {"type": "number", "description": "Y coordinate (absolute) or Y offset (relative)"},
                 "relative": {"type": "boolean", "default": False, "description": "If true, x/y are offsets from current position instead of absolute coordinates"},
                 "from_screenshot": {"type": "boolean", "default": False, "description": "If true, auto-converts coordinates from screenshot space to screen space using the cached screenshot_scale factor"},
             },
@@ -161,10 +161,10 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer", "description": "X coordinate to click at. Omit to click at current position."},
-                "y": {"type": "integer", "description": "Y coordinate to click at. Omit to click at current position."},
+                "x": {"type": "number", "description": "X coordinate to click at. Omit to click at current position."},
+                "y": {"type": "number", "description": "Y coordinate to click at. Omit to click at current position."},
                 "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
-                "clicks": {"type": "integer", "default": 1, "description": "Number of clicks: 1=single, 2=double, 3=triple"},
+                "clicks": {"type": "number", "default": 1, "description": "Number of clicks: 1=single, 2=double, 3=triple"},
                 "from_screenshot": {"type": "boolean", "default": False, "description": "If true, auto-converts x/y from screenshot space to screen space"},
             },
         },
@@ -179,10 +179,10 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "start_x": {"type": "integer", "description": "Starting X coordinate"},
-                "start_y": {"type": "integer", "description": "Starting Y coordinate"},
-                "end_x": {"type": "integer", "description": "Ending X coordinate"},
-                "end_y": {"type": "integer", "description": "Ending Y coordinate"},
+                "start_x": {"type": "number", "description": "Starting X coordinate"},
+                "start_y": {"type": "number", "description": "Starting Y coordinate"},
+                "end_x": {"type": "number", "description": "Ending X coordinate"},
+                "end_y": {"type": "number", "description": "Ending Y coordinate"},
                 "button": {"type": "string", "default": "left", "description": "Mouse button to hold during drag"},
                 "duration": {"type": "number", "default": 0.5, "description": "Drag duration in seconds. Increase for smoother drags."},
                 "from_screenshot": {"type": "boolean", "default": False, "description": "If true, auto-converts coordinates from screenshot space to screen space"},
@@ -201,7 +201,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "direction": {"type": "string", "enum": ["up", "down", "left", "right"], "description": "Scroll direction. Use this with 'clicks' for simple scrolling."},
-                "clicks": {"type": "integer", "default": 3, "description": "Number of scroll steps (1-10). Each click is one notch of the scroll wheel."},
+                "clicks": {"type": "number", "default": 3, "description": "Number of scroll steps (1-10). Each click is one notch of the scroll wheel."},
             },
             "required": ["direction"],
         },
@@ -326,8 +326,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer", "description": "X coordinate in emulator pixels"},
-                "y": {"type": "integer", "description": "Y coordinate in emulator pixels"},
+                "x": {"type": "number", "description": "X coordinate in emulator pixels"},
+                "y": {"type": "number", "description": "Y coordinate in emulator pixels"},
                 "device": {"type": "string", "description": "ADB device serial (e.g., 'emulator-5554'). Omit if only one device is connected."},
             },
             "required": ["x", "y"],
@@ -343,11 +343,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x1": {"type": "integer", "description": "Starting X coordinate"},
-                "y1": {"type": "integer", "description": "Starting Y coordinate"},
-                "x2": {"type": "integer", "description": "Ending X coordinate"},
-                "y2": {"type": "integer", "description": "Ending Y coordinate"},
-                "duration_ms": {"type": "integer", "default": 300, "description": "Swipe duration in milliseconds. Increase for slower swipes."},
+                "x1": {"type": "number", "description": "Starting X coordinate"},
+                "y1": {"type": "number", "description": "Starting Y coordinate"},
+                "x2": {"type": "number", "description": "Ending X coordinate"},
+                "y2": {"type": "number", "description": "Ending Y coordinate"},
+                "duration_ms": {"type": "number", "default": 300, "description": "Swipe duration in milliseconds. Increase for slower swipes."},
                 "device": {"type": "string", "description": "ADB device serial. Omit if only one device is connected."},
             },
             "required": ["x1", "y1", "x2", "y2"],
@@ -363,7 +363,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "keycode": {"type": "integer", "description": "Android keycode integer (e.g., 3=HOME, 4=BACK, 24=VOLUME_UP)"},
+                "keycode": {"type": "number", "description": "Android keycode integer (e.g., 3=HOME, 4=BACK, 24=VOLUME_UP)"},
                 "device": {"type": "string", "description": "ADB device serial. Omit if only one device is connected."},
             },
             "required": ["keycode"],
@@ -483,19 +483,19 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "properties": {
                 "text": {"type": "string", "description": "The text to find and click on screen (case-insensitive, partial match)"},
                 "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
-                "clicks": {"type": "integer", "default": 1, "description": "Number of clicks (1=single, 2=double)"},
-                "monitor": {"type": "integer", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
+                "clicks": {"type": "number", "default": 1, "description": "Number of clicks (1=single, 2=double)"},
+                "monitor": {"type": "number", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
                 "region": {
                     "type": "object",
                     "properties": {
-                        "left": {"type": "integer"},
-                        "top": {"type": "integer"},
-                        "width": {"type": "integer"},
-                        "height": {"type": "integer"},
+                        "left": {"type": "number"},
+                        "top": {"type": "number"},
+                        "width": {"type": "number"},
+                        "height": {"type": "number"},
                     },
                     "description": "Limit OCR search to this screen region for faster and more precise results",
                 },
-                "occurrence": {"type": "integer", "default": 1, "description": "Which occurrence to click if text appears multiple times (1=first, 2=second, etc.)"},
+                "occurrence": {"type": "number", "default": 1, "description": "Which occurrence to click if text appears multiple times (1=first, 2=second, etc.)"},
             },
             "required": ["text"],
         },
@@ -533,10 +533,10 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "action": {"type": "string", "enum": ["maximize", "minimize", "restore", "resize", "move", "snap_left", "snap_right"], "description": "Window management action"},
                 "title": {"type": "string", "description": "Window title substring to match"},
                 "process": {"type": "string", "description": "Process name to match (e.g., 'notepad.exe')"},
-                "width": {"type": "integer", "description": "New window width (for resize)"},
-                "height": {"type": "integer", "description": "New window height (for resize)"},
-                "x": {"type": "integer", "description": "New window X position (for move)"},
-                "y": {"type": "integer", "description": "New window Y position (for move)"},
+                "width": {"type": "number", "description": "New window width (for resize)"},
+                "height": {"type": "number", "description": "New window height (for resize)"},
+                "x": {"type": "number", "description": "New window X position (for move)"},
+                "y": {"type": "number", "description": "New window Y position (for move)"},
             },
             "required": ["action"],
         },
@@ -582,6 +582,52 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["text"],
         },
     },
+
+    # Targeting (2)
+    {
+        "name": "find_ui_elements",
+        "description": (
+            "Discover interactive UI elements (buttons, checkboxes, menus, etc.) in a window "
+            "WITHOUT taking a screenshot. Returns element names, types, and pixel-perfect coordinates. "
+            "Combines Win32 control enumeration (classic dialogs) and UI Automation (modern apps). "
+            "Use this to understand a window's controls before clicking. Requires window_title or hwnd."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "window_title": {"type": "string", "description": "Window title substring to search in (case-insensitive)"},
+                "hwnd": {"type": "number", "description": "Direct window handle (alternative to window_title — use list_windows to get hwnds)"},
+                "name": {"type": "string", "description": "Filter elements by name/text substring (case-insensitive)"},
+                "control_type": {"type": "string", "description": "Filter by type: 'button', 'checkbox', 'radio', 'edit', 'combobox', 'label', 'menuitem', 'tab', etc."},
+                "interactive_only": {"type": "boolean", "default": False, "description": "If true, only return clickable elements (buttons, checkboxes, links, etc.)"},
+                "max_results": {"type": "number", "default": 50, "description": "Maximum number of elements to return (1-100)"},
+            },
+        },
+    },
+    {
+        "name": "click_ui_element",
+        "description": (
+            "Click a UI element by name using a tiered targeting cascade — NO coordinates needed. "
+            "Tier 1 (Win32 SendMessage): instant, for classic dialogs/message boxes. "
+            "Tier 2 (UI Automation): pixel-perfect, for modern apps (WPF, Electron, Chrome). "
+            "Tier 3 (OCR): fallback for anything visible on screen. "
+            "PREFER THIS over screenshot+OCR+click workflows. Specify window_title for best results. "
+            "Use tier='win32'/'uia'/'ocr' to force a specific method, or 'auto' (default) to cascade."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "The text/label of the element to click (case-insensitive, partial match)"},
+                "window_title": {"type": "string", "description": "Window title substring to search in. Recommended for Tier 1/2 accuracy."},
+                "hwnd": {"type": "number", "description": "Direct window handle (alternative to window_title)"},
+                "control_type": {"type": "string", "description": "Filter by control type: 'button', 'checkbox', 'radio', etc."},
+                "tier": {"type": "string", "enum": ["auto", "win32", "uia", "ocr"], "default": "auto", "description": "Targeting method: 'auto' cascades all tiers, or force a specific one"},
+                "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
+                "clicks": {"type": "number", "default": 1, "description": "Number of clicks (1=single, 2=double)"},
+            },
+            "required": ["name"],
+        },
+    },
 ]
 
 
@@ -606,16 +652,20 @@ NEXT_ACTIONS: dict[str, list[str]] = {
     "list_windows": ["focus_window", "close_window"],
     "find_on_screen": ["mouse_click"],
     "get_system_info": ["get_screen_info"],
+    "get_health": ["get_screen_info", "capture_screenshot"],
+    "get_pixel_color": ["capture_screenshot", "mouse_move"],
     "open_url": ["wait_for_window"],
     "type_text": ["capture_screenshot"],
     "window_manage": ["capture_screenshot"],
+    "find_ui_elements": ["click_ui_element", "capture_screenshot"],
+    "click_ui_element": ["capture_screenshot"],
 }
 
 # Tools that change visible UI state — trigger verification screenshot
 _STATE_CHANGING_TOOLS = frozenset({
     "mouse_click", "mouse_drag", "keyboard_type", "keyboard_hotkey",
     "keyboard_press", "focus_window", "launch_app", "click_text",
-    "close_window", "type_text", "window_manage",
+    "close_window", "type_text", "window_manage", "click_ui_element",
 })
 
 _SCROLL_DIRECTION_MAP = {
@@ -764,6 +814,24 @@ def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) ->
             text=params["text"],
             method=params.get("method", "auto"),
         ),
+
+        "find_ui_elements": lambda: targeting.find_ui_elements_tool(
+            window_title=params.get("window_title"),
+            hwnd=params.get("hwnd"),
+            name=params.get("name"),
+            control_type=params.get("control_type"),
+            interactive_only=params.get("interactive_only", False),
+            max_results=params.get("max_results", 50),
+        ),
+        "click_ui_element": lambda: targeting.click_ui_element_tool(
+            name=params["name"],
+            window_title=params.get("window_title"),
+            hwnd=params.get("hwnd"),
+            control_type=params.get("control_type"),
+            tier=params.get("tier", "auto"),
+            button=params.get("button", "left"),
+            clicks=params.get("clicks", 1),
+        ),
     }
 
     handler = handlers.get(tool_name)
@@ -791,8 +859,11 @@ def create_server() -> Server:
             for t in TOOL_DEFINITIONS
         ]
 
-    @server.call_tool()
+    @server.call_tool(validate_input=False)
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | ImageContent]:
+        # Normalize params early — coerce string/float numbers before any processing
+        arguments = normalize_params(name, arguments)
+
         # Security check
         check = middleware.pre_check(name, arguments)
         if not check.allowed:

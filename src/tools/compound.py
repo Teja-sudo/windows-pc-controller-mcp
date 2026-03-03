@@ -73,8 +73,8 @@ def click_text(
             center_x += region.get("left", 0)
             center_y += region.get("top", 0)
 
-        # Step 4: Click
-        click_result = mouse_click(x=center_x, y=center_y, button=button, clicks=clicks)
+        # Step 4: Click (coords are in screenshot space since OCR ran on downscaled image)
+        click_result = mouse_click(x=center_x, y=center_y, button=button, clicks=clicks, from_screenshot=True)
         if not click_result["success"]:
             return click_result
 

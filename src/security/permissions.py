@@ -7,6 +7,7 @@ from typing import Any
 
 DANGEROUS_TOOLS = frozenset({
     "close_window", "launch_app", "adb_shell", "keyboard_hotkey", "window_manage",
+    "click_ui_element",
 })
 
 

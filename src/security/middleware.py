@@ -29,6 +29,7 @@ TOOL_CATEGORY = {
     "click_text": "mouse", "wait_for_window": "system",
     "window_manage": "system", "get_health": "system", "open_url": "system",
     "type_text": "keyboard",
+    "find_ui_elements": "screenshot", "click_ui_element": "mouse",
 }
 
 

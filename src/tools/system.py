@@ -321,6 +321,10 @@ def get_health() -> dict[str, Any]:
         except ImportError:
             health["vigem_driver"] = "not installed (pip install vgamepad)"
 
+        # UI Automation
+        from src.utils.uia_backend import is_uia_available
+        health["uia_available"] = is_uia_available()
+
         # Tool count
         from src.server import TOOL_DEFINITIONS
         health["tool_count"] = len(TOOL_DEFINITIONS)

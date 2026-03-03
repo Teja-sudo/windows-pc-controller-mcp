@@ -91,9 +91,10 @@ def capture_screenshot(
 
         # Downscale for agent vision unless this is an internal/verification capture
         screenshot_scale = 1.0
+        screen_offset = (grab_area["left"], grab_area["top"])
         if not _internal:
             img, screenshot_scale = _downscale_for_agent(img, max_resolution)
-            set_screenshot_scale(screenshot_scale)
+            set_screenshot_scale(screenshot_scale, offset=screen_offset)
 
         return {
             "success": True,

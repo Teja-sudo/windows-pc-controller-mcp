@@ -8,11 +8,11 @@ class TestGetContext:
     """Verify get_context returns the expected shape."""
 
     @patch("src.utils.context.get_active_window_title", return_value="Notepad")
-    @patch("src.utils.context._mouse")
-    def test_returns_cursor_active_window_timestamp(self, mock_mouse, mock_title):
+    @patch("src.utils.context._mouse_backend")
+    def test_returns_cursor_active_window_timestamp(self, mock_backend, mock_title):
         from src.utils.context import get_context
 
-        mock_mouse.position = (100, 200)
+        mock_backend.get_cursor_pos.return_value = (100, 200)
         ctx = get_context()
 
         assert ctx["cursor"] == {"x": 100, "y": 200}
@@ -22,22 +22,22 @@ class TestGetContext:
         assert len(ctx["timestamp"].split(":")) == 3
 
     @patch("src.utils.context.get_active_window_title", side_effect=Exception("no window"))
-    @patch("src.utils.context._mouse")
-    def test_graceful_on_active_window_failure(self, mock_mouse, mock_title):
+    @patch("src.utils.context._mouse_backend")
+    def test_graceful_on_active_window_failure(self, mock_backend, mock_title):
         from src.utils.context import get_context
 
-        mock_mouse.position = (50, 60)
+        mock_backend.get_cursor_pos.return_value = (50, 60)
         ctx = get_context()
 
         assert ctx["active_window"] == ""
         assert ctx["cursor"] == {"x": 50, "y": 60}
 
     @patch("src.utils.context.get_active_window_title", return_value="Test")
-    @patch("src.utils.context._mouse")
-    def test_graceful_on_mouse_failure(self, mock_mouse, mock_title):
+    @patch("src.utils.context._mouse_backend")
+    def test_graceful_on_mouse_failure(self, mock_backend, mock_title):
         from src.utils.context import get_context
 
-        type(mock_mouse).position = property(lambda self: (_ for _ in ()).throw(Exception("no mouse")))
+        mock_backend.get_cursor_pos.side_effect = Exception("no mouse")
         ctx = get_context()
 
         assert ctx["cursor"] == {"x": 0, "y": 0}
@@ -59,3 +59,22 @@ class TestScreenshotScale:
         assert get_screenshot_scale() == 0.5
         # Reset
         set_screenshot_scale(1.0)
+
+    def test_default_offset_is_zero(self):
+        from src.utils.context import get_screenshot_offset
+        assert get_screenshot_offset() == (0, 0)
+
+    def test_set_and_get_offset(self):
+        from src.utils.context import set_screenshot_scale, get_screenshot_offset
+
+        set_screenshot_scale(1.5, offset=(60, 10))
+        assert get_screenshot_offset() == (60, 10)
+        # Reset
+        set_screenshot_scale(1.0, offset=(0, 0))
+
+    def test_offset_defaults_to_zero_when_not_provided(self):
+        from src.utils.context import set_screenshot_scale, get_screenshot_offset
+
+        set_screenshot_scale(1.5, offset=(100, 200))
+        set_screenshot_scale(2.0)  # no offset → defaults to (0, 0)
+        assert get_screenshot_offset() == (0, 0)

@@ -53,9 +53,9 @@ def _make_config(**overrides):
 # ===========================================================================
 
 class TestToolDefinitions:
-    def test_tool_count_is_33(self):
+    def test_tool_count_is_35(self):
         from src.server import TOOL_DEFINITIONS
-        assert len(TOOL_DEFINITIONS) == 33
+        assert len(TOOL_DEFINITIONS) == 35
 
     def test_all_definitions_have_required_keys(self):
         from src.server import TOOL_DEFINITIONS
@@ -70,7 +70,7 @@ class TestToolDefinitions:
         assert len(names) == len(set(names)), f"Duplicate tool names: {names}"
 
     def test_expected_tool_names_present(self):
-        """Verify all 33 expected tool names are registered."""
+        """Verify all 35 expected tool names are registered."""
         from src.server import TOOL_DEFINITIONS
 
         expected = {
@@ -93,6 +93,8 @@ class TestToolDefinitions:
             "clipboard_read", "clipboard_write",
             # Compound (3)
             "click_text", "wait_for_window", "type_text",
+            # Targeting (2)
+            "find_ui_elements", "click_ui_element",
         }
         actual = {t["name"] for t in TOOL_DEFINITIONS}
         missing = expected - actual

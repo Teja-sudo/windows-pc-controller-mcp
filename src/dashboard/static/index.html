@@ -1283,6 +1283,7 @@
       'System':    ['launch_app', 'focus_window', 'close_window', 'get_system_info', 'window_manage', 'get_health', 'open_url', 'wait_for_window'],
       'Clipboard': ['clipboard_read', 'clipboard_write'],
       'Compound':  ['click_text', 'type_text'],
+      'Targeting': ['find_ui_elements', 'click_ui_element'],
     };
 
     const CATEGORY_ICONS = {
@@ -1294,6 +1295,7 @@
       'System':    'pc-display',
       'Clipboard': 'clipboard',
       'Compound':  'layers',
+      'Targeting': 'bullseye',
     };
 
     // Expose for other tab modules
@@ -2641,6 +2643,21 @@
         risk: "HIGH — Can type or paste text into any focused application, similar to keyboard_type. The paste method temporarily overwrites clipboard contents. Subject to keyboard rate limits.",
         default: "Enabled",
         config: "tools:\n  type_text:\n    enabled: true",
+      },
+
+      "tools.find_ui_elements": {
+        title: "Find UI Elements",
+        what: "Discovers interactive UI elements (buttons, checkboxes, menus, text fields) in a window without taking a screenshot. Combines Win32 control enumeration (for classic dialogs) and Microsoft UI Automation (for modern apps like WPF, Electron, Chrome). Returns element names, types, and pixel-perfect bounding rectangles.",
+        risk: "LOW — Read-only discovery of UI element metadata. Does not interact with or modify any elements. Reveals element names and positions, which could show sensitive labels in password managers (mitigated by blocked_apps).",
+        default: "Enabled",
+        config: "tools:\n  find_ui_elements:\n    enabled: true",
+      },
+      "tools.click_ui_element": {
+        title: "Click UI Element",
+        what: "Clicks a UI element by name using a tiered targeting cascade: (1) Win32 SendMessage for instant clicks on classic controls, (2) UI Automation for pixel-perfect targeting on modern apps, (3) OCR fallback for anything visible on screen. No coordinates needed — just provide the element's text label. Requires confirmation popup as a dangerous action.",
+        risk: "HIGH — Can click any interactive element by name, similar to mouse_click but more powerful because it automatically locates the target. Could trigger any button, checkbox, or menu item. Mitigated by confirmation popups and blocked_apps filtering.",
+        default: "Enabled",
+        config: "tools:\n  click_ui_element:\n    enabled: true",
       },
 
       // ── Security Settings (17 entries) ─────────────────

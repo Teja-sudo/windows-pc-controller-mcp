@@ -31,7 +31,7 @@ class TestClickText:
         assert result["clicked_text"] == "Edit"
         assert result["x"] == 80  # center of [60,100]
         assert result["y"] == 12  # center of [5,20] (rounded)
-        mock_click.assert_called_once_with(x=80, y=12, button="left", clicks=1)
+        mock_click.assert_called_once_with(x=80, y=12, button="left", clicks=1, from_screenshot=True)
 
     @patch("src.tools.compound.ocr_extract_text")
     def test_text_not_found_returns_visible_text(self, mock_ocr):

@@ -116,3 +116,7 @@ tools:
     enabled: true
   type_text:
     enabled: true
+  find_ui_elements:
+    enabled: true
+  click_ui_element:
+    enabled: true
