@@ -2213,7 +2213,7 @@
           // Status column (badge)
           const tdStatus = document.createElement('td');
           const badge = document.createElement('sl-badge');
-          const isAllowed = entry.status === 'allowed';
+          const isAllowed = entry.allowed === true;
           badge.variant = isAllowed ? 'success' : 'danger';
           badge.textContent = isAllowed ? 'Allowed' : 'Denied';
           tdStatus.appendChild(badge);
@@ -2222,9 +2222,10 @@
           // Reason column
           const tdReason = document.createElement('td');
           tdReason.className = 'col-reason';
-          tdReason.textContent = entry.reason || '';
-          if (entry.reason && entry.reason.length > 40) {
-            tdReason.title = entry.reason;
+          const reason = entry.deny_reason || '';
+          tdReason.textContent = reason;
+          if (reason.length > 40) {
+            tdReason.title = reason;
           }
           tr.appendChild(tdReason);
 
@@ -2307,8 +2308,8 @@
           escapeCsv(ts),
           escapeCsv(entry.tool || ''),
           escapeCsv(params),
-          escapeCsv(entry.status || ''),
-          escapeCsv(entry.reason || ''),
+          escapeCsv(entry.allowed === true ? 'allowed' : 'denied'),
+          escapeCsv(entry.deny_reason || ''),
         ].join(',');
       });
 
