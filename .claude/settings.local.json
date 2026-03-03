@@ -24,7 +24,8 @@
       "mcp__windows-pc-controller-mcp__mouse_scroll",
       "mcp__windows-pc-controller-mcp__mouse_move",
       "mcp__windows-pc-controller-mcp__keyboard_press",
-      "mcp__windows-pc-controller-mcp__keyboard_type"
+      "mcp__windows-pc-controller-mcp__keyboard_type",
+      "mcp__windows-pc-controller-mcp__*"
     ]
   },
   "outputStyle": "Explanatory"
