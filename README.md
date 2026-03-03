@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server that gives Claude full control over your Windows PC — screen vision, mouse, keyboard, virtual gamepad, Android emulator, and system management. Built with maximum security by default.
 
-**Python 3.11+** | **Windows 10/11** | **152 tests** | **MIT License**
+**Python 3.11+** | **Windows 10/11** | **165 tests** | **MIT License**
 
 ---
 
@@ -27,7 +27,7 @@ All of this is locked down by default. Every tool call passes through a security
 | Tool                 | Description                                                                                |
 | -------------------- | ------------------------------------------------------------------------------------------ |
 | `capture_screenshot` | Take a screenshot of the full screen, a specific monitor, or a region. Returns base64 PNG. |
-| `ocr_extract_text`   | Extract text from the screen or a region using EasyOCR.                                    |
+| `ocr_extract_text`   | Extract text from the screen or a region using RapidOCR (ONNX Runtime).                    |
 | `find_on_screen`     | Find where a template image appears on screen using OpenCV template matching.              |
 | `get_pixel_color`    | Get the RGB hex color of a pixel at screen coordinates.                                    |
 | `list_windows`       | List all visible windows with titles, process names, and positions.                        |
@@ -113,7 +113,7 @@ pip install -e ".[dev]"
 python -m pytest tests/ -v
 ```
 
-You should see all 152 tests passing.
+You should see all 165 tests passing.
 
 ---
 
@@ -180,6 +180,39 @@ Once connected (via either Claude Desktop or Claude Code), you can ask Claude th
 - _"What's the current CPU and memory usage?"_
 - _"Find the 'Submit' button on screen and click it"_
 - _"Read what's in my clipboard"_
+
+---
+
+## Settings Dashboard
+
+A web-based dashboard for managing configuration, security controls, and viewing audit logs — no YAML editing required.
+
+### Launching
+
+```bash
+# Using the installed entry point
+mcp-dashboard
+
+# Or as a Python module
+python -m src.dashboard
+```
+
+The dashboard starts on `http://localhost:8765` and auto-opens in your browser.
+
+### Tabs
+
+| Tab | What It Does |
+|-----|-------------|
+| **Tools** | Toggle each of the 26 tools on/off, grouped by category. Enable All / Disable All per category. |
+| **Security** | All security settings — masking, keyboard restrictions, app allowlist/blocklist, ADB controls, clipboard. |
+| **Rate Limits** | Visual sliders for per-category rate limits (mouse, keyboard, screenshot, ADB, gamepad). |
+| **Audit Log** | Analytics dashboard with stats, charts (calls over time, denials by tool), filterable log table, CSV export, and live tail. |
+
+Every setting has an info icon with a contextual help popover explaining what it does, the risk level, default value, and the exact YAML config path.
+
+### How Changes Apply
+
+The dashboard saves changes to `config/config.yaml` (the same user override file you'd edit manually). After saving, a banner reminds you to **restart the MCP server** to apply the new settings. The dashboard does not hot-reload the running MCP server.
 
 ---
 
@@ -578,6 +611,11 @@ windows-pc-controller-mcp/
 ├── src/
 │   ├── server.py              # MCP entry point — registers 26 tools, dispatches calls
 │   ├── config.py              # YAML config loader with Pydantic validation
+│   ├── dashboard/
+│   │   ├── __init__.py        # FastAPI app, API routes, static file serving
+│   │   ├── __main__.py        # CLI entry point (python -m src.dashboard)
+│   │   └── static/
+│   │       └── index.html     # Self-contained UI (Shoelace + Chart.js + Tippy.js via CDN)
 │   ├── security/
 │   │   ├── middleware.py      # Central security gate (pre_check + post_log)
 │   │   ├── permissions.py     # Permission checker (allowlist/blocklist, tool enable/disable)
@@ -596,7 +634,7 @@ windows-pc-controller-mcp/
 │   └── utils/
 │       ├── win32_helpers.py   # Windows API wrappers for window management
 │       └── image_utils.py     # PIL/OpenCV image conversion, template matching
-├── tests/                     # 152 tests — one test file per module
+├── tests/                     # 165 tests — one test file per module
 ├── config/
 │   └── default.yaml           # Secure defaults (never edit)
 ├── logs/                      # Audit logs (gitignored)
@@ -639,18 +677,20 @@ src/server.py
 
 | Library         | Purpose                                         |
 | --------------- | ----------------------------------------------- |
-| `mcp`           | MCP protocol server framework                   |
-| `mss`           | Fast multi-monitor screen capture               |
-| `easyocr`       | OCR text extraction                             |
-| `opencv-python` | Template matching for find-on-screen            |
-| `Pillow`        | Image processing and conversion                 |
-| `pynput`        | Mouse and keyboard control                      |
-| `pywin32`       | Windows API (window management, clipboard)      |
-| `vgamepad`      | Virtual Xbox 360 controller emulation           |
-| `pyyaml`        | YAML configuration parsing                      |
-| `pydantic`      | Configuration validation with type safety       |
-| `customtkinter` | Modern UI for confirmation popups               |
-| `psutil`        | System information (CPU, memory, disk, battery) |
+| `mcp`                   | MCP protocol server framework                   |
+| `mss`                   | Fast multi-monitor screen capture               |
+| `rapidocr-onnxruntime`  | OCR text extraction (ONNX Runtime, fast)        |
+| `opencv-python`         | Template matching for find-on-screen            |
+| `Pillow`                | Image processing and conversion                 |
+| `pynput`                | Mouse and keyboard control                      |
+| `pywin32`               | Windows API (window management, clipboard)      |
+| `vgamepad`              | Virtual Xbox 360 controller emulation           |
+| `pyyaml`                | YAML configuration parsing                      |
+| `pydantic`              | Configuration validation with type safety       |
+| `customtkinter`         | Modern UI for confirmation popups               |
+| `psutil`                | System information (CPU, memory, disk, battery) |
+| `fastapi`               | Settings dashboard web server                   |
+| `uvicorn`               | ASGI server for the dashboard                   |
 
 ---
 
@@ -659,7 +699,7 @@ src/server.py
 ### Running Tests
 
 ```bash
-# Run all 152 tests
+# Run all 165 tests
 python -m pytest tests/ -v
 
 # Run a specific test file
@@ -685,9 +725,13 @@ All tests use `unittest.mock` to mock hardware dependencies — no real mouse mo
 ```bash
 # Start the MCP server (connects via stdio)
 python -m src.server
-
 # Or use the installed entry point
 windows-pc-controller-mcp
+
+# Launch the settings dashboard (opens browser)
+python -m src.dashboard
+# Or use the installed entry point
+mcp-dashboard
 ```
 
 ---
