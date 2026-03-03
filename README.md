@@ -2,19 +2,19 @@
 
 An MCP (Model Context Protocol) server that gives Claude full control over your Windows PC — screen vision, mouse, keyboard, virtual gamepad, Android emulator, and system management. Built with maximum security by default.
 
-**Python 3.11+** | **Windows 10/11** | **203 tests** | **MIT License**
+**Python 3.11+** | **Windows 10/11** | **285 tests** | **MIT License**
 
 ---
 
 ## What Is This?
 
-This is an [MCP server](https://modelcontextprotocol.io/) that connects to Claude Desktop (or any MCP client) and exposes **29 tools** across 8 categories. Once connected, Claude can:
+This is an [MCP server](https://modelcontextprotocol.io/) that connects to Claude Desktop (or any MCP client) and exposes **33 tools** across 8 categories. Once connected, Claude can:
 
 - **See your screen** — take screenshots, read text via OCR, find UI elements, detect pixel colors
 - **Control mouse & keyboard** — click, type, drag, scroll, press hotkeys
 - **Play games with a gamepad** — emulate a virtual Xbox 360 controller with analog sticks and triggers
 - **Control Android emulators** — tap, swipe, and send commands to BlueStacks or any ADB-connected device
-- **Manage your system** — launch apps, switch windows, read clipboard, get system info
+- **Manage your system** — launch apps, switch/resize/snap windows, open URLs, read clipboard, get system info
 
 All of this is locked down by default. Every tool call passes through a security middleware with permission checks, rate limiting, audit logging, and native Windows confirmation popups for dangerous actions.
 
@@ -68,7 +68,7 @@ All of this is locked down by default. Every tool call passes through a security
 | `adb_key_event` | Send an Android key event (e.g., 3=HOME, 4=BACK, 24=VOLUME_UP). |
 | `adb_shell`     | Run an allowlisted ADB shell command on the emulator.           |
 
-### System Management (4 tools)
+### System Management (8 tools)
 
 | Tool              | Description                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------ |
@@ -76,6 +76,10 @@ All of this is locked down by default. Every tool call passes through a security
 | `focus_window`    | Bring a window to the foreground by title substring or process name. Supports Unicode normalization. Returns available windows on failure for self-correction. |
 | `close_window`    | Close a window gracefully by title or process name (sends WM_CLOSE). Respects blocked app list.  |
 | `get_system_info` | Get CPU, memory, disk, and battery info (sanitized — no usernames or paths).                     |
+| `window_manage`   | Manage window state and position: maximize, minimize, restore, resize, move, snap left/right. |
+| `get_health`      | Diagnostic snapshot: OCR engine, DPI, ADB, ViGEm driver, screen info, tool count. Call at session start. |
+| `open_url`        | Open a URL in the default browser (stdlib, zero deps). Use instead of `launch_app` for web pages. |
+| `wait_for_window` | Poll for a window to appear by title or process name, with configurable timeout (max 30s). Use after `launch_app`. |
 
 ### Clipboard (2 tools)
 
@@ -84,14 +88,14 @@ All of this is locked down by default. Every tool call passes through a security
 | `clipboard_read`  | Read the current clipboard text content. **Disabled by default.** |
 | `clipboard_write` | Write text to the clipboard.                                      |
 
-### Compound Tools (2 tools)
+### Compound Tools (4 tools)
 
 Higher-level tools that combine multiple operations into a single call — designed to reduce round-trips and improve AI agent accuracy.
 
 | Tool              | Description                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------ |
 | `click_text`      | Find text on screen via OCR, calculate its center coordinates, and click it — all in one step. Returns visible text on failure for debugging. |
-| `wait_for_window` | Poll for a window to appear by title or process name, with configurable timeout (max 30s). Use after `launch_app` to wait for the app to be ready. |
+| `type_text`       | Smart text input — auto-selects typing (<50 chars) or clipboard+paste (≥50 chars, 100x faster). Preferred over `keyboard_type`. |
 
 ---
 
@@ -123,7 +127,7 @@ pip install -e ".[dev]"
 python -m pytest tests/ -v
 ```
 
-You should see all 203 tests passing.
+You should see all 285 tests passing.
 
 ---
 
@@ -176,7 +180,7 @@ claude mcp list
 claude mcp get windows-pc-controller
 ```
 
-You should see `windows-pc-controller` with 29 tools available.
+You should see `windows-pc-controller` with 33 tools available.
 
 ### Usage Examples
 
@@ -213,7 +217,7 @@ The dashboard starts on `http://localhost:8765` and auto-opens in your browser.
 
 | Tab | What It Does |
 |-----|-------------|
-| **Tools** | Toggle each of the 29 tools on/off, grouped by category. Enable All / Disable All per category. |
+| **Tools** | Toggle each of the 33 tools on/off, grouped by category. Enable All / Disable All per category. |
 | **Security** | All security settings — masking, keyboard restrictions, app allowlist/blocklist, ADB controls, clipboard. |
 | **Rate Limits** | Visual sliders for per-category rate limits (mouse, keyboard, screenshot, ADB, gamepad). |
 | **Audit Log** | Analytics dashboard with stats, charts (calls over time, denials by tool), filterable log table, CSV export, and live tail. |
@@ -295,7 +299,7 @@ security:
   rate_limits:
     mouse: 60 # mouse_move, mouse_click, mouse_drag, mouse_scroll, mouse_position, click_text
     keyboard: 120 # keyboard_type, keyboard_hotkey, keyboard_press
-    screenshot: 10 # capture_screenshot, ocr_extract_text, find_on_screen, get_pixel_color, get_screen_info, list_windows
+    screenshot: 30 # capture_screenshot, ocr_extract_text, find_on_screen, get_pixel_color, get_screen_info, list_windows
     adb: 30 # adb_tap, adb_swipe, adb_key_event, adb_shell
     gamepad: 120 # gamepad_connect, gamepad_input, gamepad_disconnect
 ```
@@ -304,11 +308,11 @@ security:
 | --------------------------------- | ----- | ------- | --------------------------------------------------------------------------------------------- |
 | `security.rate_limits.mouse`      | `int` | `60`    | `mouse_move`, `mouse_click`, `mouse_drag`, `mouse_scroll`, `mouse_position`, `click_text`                   |
 | `security.rate_limits.keyboard`   | `int` | `120`   | `keyboard_type`, `keyboard_hotkey`, `keyboard_press`                                          |
-| `security.rate_limits.screenshot` | `int` | `10`    | `capture_screenshot`, `ocr_extract_text`, `find_on_screen`, `get_pixel_color`, `get_screen_info`, `list_windows` |
+| `security.rate_limits.screenshot` | `int` | `30`    | `capture_screenshot`, `ocr_extract_text`, `find_on_screen`, `get_pixel_color`, `get_screen_info`, `list_windows` |
 | `security.rate_limits.adb`        | `int` | `30`    | `adb_tap`, `adb_swipe`, `adb_key_event`, `adb_shell`                                          |
 | `security.rate_limits.gamepad`    | `int` | `120`   | `gamepad_connect`, `gamepad_input`, `gamepad_disconnect`                                      |
 
-System tools (`launch_app`, `focus_window`, `close_window`, `get_system_info`, `wait_for_window`) and clipboard tools (`clipboard_read`, `clipboard_write`) are not rate-limited by default.
+System tools (`launch_app`, `focus_window`, `close_window`, `get_system_info`, `window_manage`, `get_health`, `open_url`, `wait_for_window`) and clipboard tools (`clipboard_read`, `clipboard_write`) are not rate-limited by default. `type_text` uses the keyboard rate limit category.
 
 #### Keyboard Security
 
@@ -442,12 +446,22 @@ tools:
   get_system_info:
     enabled: true
 
+  # System tools (continued)
+  window_manage:
+    enabled: true
+  get_health:
+    enabled: true
+  open_url:
+    enabled: true
+
   # Compound tools
   get_screen_info:
     enabled: true
   click_text:
     enabled: true
   wait_for_window:
+    enabled: true
+  type_text:
     enabled: true
 
   # Clipboard tools
@@ -581,12 +595,13 @@ Claude sends tool call
 
 ### Dangerous Action Confirmation
 
-Four tools are flagged as **dangerous** and trigger a native Windows popup before execution:
+Five tools are flagged as **dangerous** and trigger a native Windows popup before execution:
 
 - `close_window` — Could close unsaved work
 - `launch_app` — Could run arbitrary executables
 - `adb_shell` — Could execute commands on connected devices
 - `keyboard_hotkey` — Could trigger system-level shortcuts
+- `window_manage` — Could resize, move, or minimize windows
 
 When triggered, a popup appears with:
 
@@ -627,7 +642,7 @@ Denied actions are also logged with the denial reason.
 ```
 windows-pc-controller-mcp/
 ├── src/
-│   ├── server.py              # MCP entry point — registers 29 tools, dispatches calls
+│   ├── server.py              # MCP entry point — registers 33 tools, dispatches calls
 │   ├── config.py              # YAML config loader with Pydantic validation
 │   ├── dashboard/
 │   │   ├── __init__.py        # FastAPI app, API routes, static file serving
@@ -647,14 +662,17 @@ windows-pc-controller-mcp/
 │   │   ├── keyboard.py        # Type, hotkey, press
 │   │   ├── gamepad.py         # Virtual Xbox 360 via ViGEmBus
 │   │   ├── adb.py             # Android emulator control via ADB
-│   │   ├── system.py          # App launch, window focus/close, system info
-│   │   ├── compound.py        # Multi-step tools: click_text, wait_for_window
+│   │   ├── system.py          # App launch, window focus/close/manage, system info, health, URL
+│   │   ├── compound.py        # Multi-step tools: click_text, wait_for_window, type_text
 │   │   └── clipboard.py       # Clipboard read/write
 │   └── utils/
 │       ├── win32_helpers.py   # Windows API wrappers for window management
 │       ├── dpi.py             # DPI awareness initialization and scale factor
-│       └── image_utils.py     # PIL/OpenCV image conversion, template matching
-├── tests/                     # 203 tests — one test file per module
+│       ├── image_utils.py     # PIL/OpenCV image conversion, template matching
+│       ├── context.py         # Cursor/active-window/timestamp snapshot for response enrichment
+│       ├── errors.py          # Standardized error codes and response helpers
+│       └── params.py          # Parameter alias mapping and type coercion
+├── tests/                     # 285 tests — one test file per module
 ├── config/
 │   └── default.yaml           # Secure defaults (never edit)
 ├── logs/                      # Audit logs (gitignored)
@@ -670,7 +688,7 @@ MCP Client (Claude Desktop)
     v
 src/server.py
     |
-    |-- list_tools()  -->  Returns 29 tool definitions
+    |-- list_tools()  -->  Returns 33 tool definitions
     |
     |-- call_tool(name, args)
             |
@@ -719,7 +737,7 @@ src/server.py
 ### Running Tests
 
 ```bash
-# Run all 203 tests
+# Run all 285 tests
 python -m pytest tests/ -v
 
 # Run a specific test file

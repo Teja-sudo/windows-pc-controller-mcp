@@ -1276,12 +1276,13 @@
     // ── Tool Categories ───────────────────────────────────
     const TOOL_CATEGORIES = {
       'Screen':    ['capture_screenshot', 'ocr_extract_text', 'find_on_screen', 'get_pixel_color', 'get_screen_info', 'list_windows'],
-      'Mouse':     ['mouse_move', 'mouse_click', 'mouse_drag', 'mouse_scroll', 'mouse_position', 'click_text'],
+      'Mouse':     ['mouse_move', 'mouse_click', 'mouse_drag', 'mouse_scroll', 'mouse_position'],
       'Keyboard':  ['keyboard_type', 'keyboard_hotkey', 'keyboard_press'],
       'Gamepad':   ['gamepad_connect', 'gamepad_input', 'gamepad_disconnect'],
       'ADB':       ['adb_tap', 'adb_swipe', 'adb_key_event', 'adb_shell'],
-      'System':    ['launch_app', 'focus_window', 'close_window', 'get_system_info', 'wait_for_window'],
+      'System':    ['launch_app', 'focus_window', 'close_window', 'get_system_info', 'window_manage', 'get_health', 'open_url', 'wait_for_window'],
       'Clipboard': ['clipboard_read', 'clipboard_write'],
+      'Compound':  ['click_text', 'type_text'],
     };
 
     const CATEGORY_ICONS = {
@@ -1292,6 +1293,7 @@
       'ADB':       'phone',
       'System':    'pc-display',
       'Clipboard': 'clipboard',
+      'Compound':  'layers',
     };
 
     // Expose for other tab modules
@@ -2405,7 +2407,7 @@
     // ── Contextual Help Data ──────────────────────────────
 
     const HELP_DATA = {
-      // ── Tool Toggles (29 entries) ──────────────────────
+      // ── Tool Toggles (33 entries) ──────────────────────
 
       "tools.capture_screenshot": {
         title: "Capture Screenshot",
@@ -2611,6 +2613,35 @@
         config: "tools:\n  wait_for_window:\n    enabled: true",
       },
 
+      "tools.window_manage": {
+        title: "Window Manage",
+        what: "Manages a window's position and state: maximize, minimize, restore, resize, move, snap to left/right half. Identifies the target window by title substring or process name. Uses Win32 API for reliable window manipulation.",
+        risk: "MEDIUM — Can rearrange, resize, or minimize windows. While not destructive, unexpected window movements could disrupt workflows. Requires confirmation popup as a dangerous action.",
+        default: "Enabled",
+        config: "tools:\n  window_manage:\n    enabled: true",
+      },
+      "tools.get_health": {
+        title: "Get Health",
+        what: "Returns a diagnostic snapshot: OCR engine status, DPI scale factor, ADB availability, ViGEm gamepad driver status, screen dimensions, monitor count, and total tool count. Call once at session start to understand system capabilities.",
+        risk: "NONE — Read-only diagnostic. Returns system capability information without modifying anything.",
+        default: "Enabled",
+        config: "tools:\n  get_health:\n    enabled: true",
+      },
+      "tools.open_url": {
+        title: "Open URL",
+        what: "Opens a URL in the system's default web browser using Python's stdlib webbrowser module. URL must start with http:// or https://. Use this instead of launch_app for web pages.",
+        risk: "MEDIUM — Can open any URL in your browser, including potentially malicious sites. The URL is logged in the audit trail for review.",
+        default: "Enabled",
+        config: "tools:\n  open_url:\n    enabled: true",
+      },
+      "tools.type_text": {
+        title: "Type Text",
+        what: "Smart text input that auto-selects the fastest method. Short text (<50 chars) is typed character-by-character. Long text (≥50 chars) is pasted via clipboard + Ctrl+V, which is ~100x faster. Falls back to typing if clipboard is unavailable.",
+        risk: "HIGH — Can type or paste text into any focused application, similar to keyboard_type. The paste method temporarily overwrites clipboard contents. Subject to keyboard rate limits.",
+        default: "Enabled",
+        config: "tools:\n  type_text:\n    enabled: true",
+      },
+
       // ── Security Settings (17 entries) ─────────────────
 
       "security.enabled": {
@@ -2744,10 +2775,10 @@
       },
       "rate_limits.screenshot": {
         title: "Screenshot Rate Limit",
-        what: "Maximum number of screenshot and OCR operations allowed per minute. Covers capture_screenshot, ocr_extract_text, and find_on_screen. Limits how frequently the AI can observe your screen.",
+        what: "Maximum number of screenshot and OCR operations allowed per minute. Covers capture_screenshot, ocr_extract_text, and find_on_screen. Limits how frequently the AI can observe your screen. Verification screenshots (auto-captured after state-changing tools) bypass this limit.",
         risk: "LOW — Frequent screenshots consume CPU and memory for image processing. A lower limit reduces system load and limits how often the AI can observe screen changes.",
-        default: "10 calls/min",
-        config: "security:\n  rate_limits:\n    screenshot: 10",
+        default: "30 calls/min",
+        config: "security:\n  rate_limits:\n    screenshot: 30",
       },
       "rate_limits.adb": {
         title: "ADB Rate Limit",

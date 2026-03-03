@@ -386,7 +386,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
 
-    # System (4)
+    # System (8)
     {
         "name": "launch_app",
         "description": (
@@ -469,7 +469,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
 
-    # Compound (3)
+    # Compound (4)
     {
         "name": "click_text",
         "description": (
@@ -519,7 +519,6 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
 
-    # New tools (Phase 7, Batch 3)
     {
         "name": "window_manage",
         "description": (
