@@ -7,6 +7,7 @@ from typing import Any
 from pynput.mouse import Button, Controller
 
 from src.utils.errors import tool_error, tool_success, OS_ERROR
+from src.utils.context import get_screenshot_scale
 
 
 _mouse = Controller()
@@ -18,6 +19,16 @@ _BUTTON_MAP = {
 }
 
 
+def _convert_coords(x: int, y: int, from_screenshot: bool) -> tuple[int, int]:
+    """Convert screenshot pixel coords to screen coords if needed."""
+    if from_screenshot:
+        scale = get_screenshot_scale()
+        if scale != 1.0:
+            x = int(x * scale)
+            y = int(y * scale)
+    return x, y
+
+
 def mouse_position() -> dict[str, Any]:
     """Get current mouse cursor position."""
     try:
@@ -27,9 +38,15 @@ def mouse_position() -> dict[str, Any]:
         return tool_error(str(e), OS_ERROR, suggestion="This tool requires a display session")
 
 
-def mouse_move(x: int, y: int, relative: bool = False) -> dict[str, Any]:
+def mouse_move(
+    x: int, y: int,
+    relative: bool = False,
+    from_screenshot: bool = False,
+) -> dict[str, Any]:
     """Move cursor to absolute or relative coordinates."""
     try:
+        if not relative:
+            x, y = _convert_coords(x, y, from_screenshot)
         if relative:
             current_x, current_y = _mouse.position
             _mouse.position = (current_x + x, current_y + y)
@@ -46,10 +63,12 @@ def mouse_click(
     y: int | None = None,
     button: str = "left",
     clicks: int = 1,
+    from_screenshot: bool = False,
 ) -> dict[str, Any]:
     """Click at coordinates. If x,y not given, clicks at current position."""
     try:
         if x is not None and y is not None:
+            x, y = _convert_coords(x, y, from_screenshot)
             _mouse.position = (x, y)
             time.sleep(0.01)
 
@@ -65,9 +84,13 @@ def mouse_drag(
     end_x: int, end_y: int,
     button: str = "left",
     duration: float = 0.5,
+    from_screenshot: bool = False,
 ) -> dict[str, Any]:
     """Click and drag from start to end coordinates."""
     try:
+        start_x, start_y = _convert_coords(start_x, start_y, from_screenshot)
+        end_x, end_y = _convert_coords(end_x, end_y, from_screenshot)
+
         btn = _BUTTON_MAP.get(button, Button.left)
         _mouse.position = (start_x, start_y)
         time.sleep(0.05)

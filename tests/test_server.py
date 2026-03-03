@@ -25,6 +25,7 @@ def _make_config(**overrides):
             "confirm_dangerous_actions": False,
             "confirmation_timeout_seconds": 60,
             "audit_logging": False,
+            "verification_screenshots": True,
             "masking": {"enabled": True, "mask_password_fields": True, "blocked_apps": [], "blocked_regions": []},
             "rate_limits": {"mouse": 60, "keyboard": 120, "screenshot": 10, "adb": 30, "gamepad": 120},
             "keyboard": {"blocked_hotkeys": ["ctrl+alt+delete"], "max_type_length": 500, "block_password_fields": True},
@@ -165,7 +166,7 @@ class TestDispatchTool:
         mock_fn.return_value = {"success": True, "button": "right", "clicks": 2}
         config = _make_config()
         result = _dispatch_tool("mouse_click", {"x": 50, "y": 75, "button": "right", "clicks": 2}, config)
-        mock_fn.assert_called_once_with(x=50, y=75, button="right", clicks=2)
+        mock_fn.assert_called_once_with(x=50, y=75, button="right", clicks=2, from_screenshot=False)
         assert result["success"] is True
 
     @patch("src.tools.mouse.mouse_move")
@@ -175,7 +176,7 @@ class TestDispatchTool:
         mock_fn.return_value = {"success": True, "x": 10, "y": 20}
         config = _make_config()
         result = _dispatch_tool("mouse_move", {"x": 10, "y": 20, "relative": True}, config)
-        mock_fn.assert_called_once_with(x=10, y=20, relative=True)
+        mock_fn.assert_called_once_with(x=10, y=20, relative=True, from_screenshot=False)
 
     @patch("src.tools.mouse.mouse_drag")
     def test_dispatches_mouse_drag(self, mock_fn):
@@ -186,7 +187,7 @@ class TestDispatchTool:
         _dispatch_tool("mouse_drag", {"start_x": 0, "start_y": 0, "end_x": 100, "end_y": 100}, config)
         mock_fn.assert_called_once_with(
             start_x=0, start_y=0, end_x=100, end_y=100,
-            button="left", duration=0.5,
+            button="left", duration=0.5, from_screenshot=False,
         )
 
     @patch("src.tools.mouse.mouse_scroll")
@@ -489,6 +490,30 @@ class TestCallToolHandler:
             assert "image_base64" in result
             assert result["width"] == 1920
             assert result["height"] == 1080
+
+
+# ===========================================================================
+# 4b. Response enrichment
+# ===========================================================================
+
+class TestResponseEnrichment:
+    """Test _context and _next injection into responses."""
+
+    def test_next_actions_exist_for_launch_app(self):
+        from src.server import NEXT_ACTIONS
+        assert "launch_app" in NEXT_ACTIONS
+        assert "wait_for_window" in NEXT_ACTIONS["launch_app"]
+
+    def test_state_changing_tools_set(self):
+        from src.server import _STATE_CHANGING_TOOLS
+        assert "mouse_click" in _STATE_CHANGING_TOOLS
+        assert "keyboard_type" in _STATE_CHANGING_TOOLS
+        assert "mouse_position" not in _STATE_CHANGING_TOOLS
+
+    def test_verification_screenshots_config_default(self):
+        config = _make_config()
+        # Default should be True
+        assert config.security.verification_screenshots is True
 
 
 # ===========================================================================

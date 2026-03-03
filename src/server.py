@@ -135,8 +135,8 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "mouse_move",
         "description": (
             "Move the mouse cursor to absolute screen coordinates, or relative to current position. "
-            "Coordinates are in physical screen pixels. Call get_screen_info first to understand "
-            "screen dimensions and DPI scaling. Returns the final cursor position."
+            "Coordinates are in physical screen pixels. Set from_screenshot=true if coordinates came from "
+            "a screenshot (auto-converts using the cached screenshot_scale). Returns the final cursor position."
         ),
         "inputSchema": {
             "type": "object",
@@ -144,6 +144,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "x": {"type": "integer", "description": "X coordinate (absolute) or X offset (relative)"},
                 "y": {"type": "integer", "description": "Y coordinate (absolute) or Y offset (relative)"},
                 "relative": {"type": "boolean", "default": False, "description": "If true, x/y are offsets from current position instead of absolute coordinates"},
+                "from_screenshot": {"type": "boolean", "default": False, "description": "If true, auto-converts coordinates from screenshot space to screen space using the cached screenshot_scale factor"},
             },
             "required": ["x", "y"],
         },
@@ -154,7 +155,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "Click the mouse at specified coordinates or at the current cursor position. "
             "For clicking on visible text, prefer click_text which handles OCR and coordinate "
             "calculation automatically. Omit x/y to click at the current cursor position. "
-            "Coordinates are in physical screen pixels."
+            "Set from_screenshot=true if coordinates came from a screenshot."
         ),
         "inputSchema": {
             "type": "object",
@@ -163,6 +164,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "y": {"type": "integer", "description": "Y coordinate to click at. Omit to click at current position."},
                 "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
                 "clicks": {"type": "integer", "default": 1, "description": "Number of clicks: 1=single, 2=double, 3=triple"},
+                "from_screenshot": {"type": "boolean", "default": False, "description": "If true, auto-converts x/y from screenshot space to screen space"},
             },
         },
     },
@@ -182,6 +184,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "end_y": {"type": "integer", "description": "Ending Y coordinate"},
                 "button": {"type": "string", "default": "left", "description": "Mouse button to hold during drag"},
                 "duration": {"type": "number", "default": 0.5, "description": "Drag duration in seconds. Increase for smoother drags."},
+                "from_screenshot": {"type": "boolean", "default": False, "description": "If true, auto-converts coordinates from screenshot space to screen space"},
             },
             "required": ["start_x", "start_y", "end_x", "end_y"],
         },
@@ -543,6 +546,13 @@ NEXT_ACTIONS: dict[str, list[str]] = {
     "window_manage": ["capture_screenshot"],
 }
 
+# Tools that change visible UI state — trigger verification screenshot
+_STATE_CHANGING_TOOLS = frozenset({
+    "mouse_click", "mouse_drag", "keyboard_type", "keyboard_hotkey",
+    "keyboard_press", "focus_window", "launch_app", "click_text",
+    "close_window", "type_text", "window_manage",
+})
+
 _SCROLL_DIRECTION_MAP = {
     "up": (0, 1),
     "down": (0, -1),
@@ -588,15 +598,18 @@ def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) ->
 
         "mouse_move": lambda: mouse.mouse_move(
             x=params["x"], y=params["y"], relative=params.get("relative", False),
+            from_screenshot=params.get("from_screenshot", False),
         ),
         "mouse_click": lambda: mouse.mouse_click(
             x=params.get("x"), y=params.get("y"),
             button=params.get("button", "left"), clicks=params.get("clicks", 1),
+            from_screenshot=params.get("from_screenshot", False),
         ),
         "mouse_drag": lambda: mouse.mouse_drag(
             start_x=params["start_x"], start_y=params["start_y"],
             end_x=params["end_x"], end_y=params["end_y"],
             button=params.get("button", "left"), duration=params.get("duration", 0.5),
+            from_screenshot=params.get("from_screenshot", False),
         ),
         "mouse_scroll": lambda: mouse.mouse_scroll(
             **_scroll_params(params),
@@ -739,9 +752,16 @@ def create_server() -> Server:
             meta = {
                 "width": result["width"],
                 "height": result["height"],
+                "original_width": result.get("original_width", result["width"]),
+                "original_height": result.get("original_height", result["height"]),
                 "dpi_scale": result.get("dpi_scale", 1.0),
+                "screenshot_scale": result.get("screenshot_scale", 1.0),
                 "active_window": result.get("active_window", ""),
+                "_context": result.get("_context", {}),
             }
+            next_hints = result.get("_next")
+            if next_hints:
+                meta["_next"] = next_hints
             middleware.post_log(name, arguments, {"success": True, "size": f"{meta['width']}x{meta['height']}"})
             return [
                 ImageContent(type="image", data=result["image_base64"], mimeType="image/png"),
@@ -749,7 +769,31 @@ def create_server() -> Server:
             ]
 
         middleware.post_log(name, arguments, result)
-        return [TextContent(type="text", text=json.dumps(result, default=str))]
+        response: list[TextContent | ImageContent] = [
+            TextContent(type="text", text=json.dumps(result, default=str)),
+        ]
+
+        # ── Verification screenshot after state-changing tools ──
+        if (
+            result.get("success")
+            and config.security.verification_screenshots
+            and name in _STATE_CHANGING_TOOLS
+        ):
+            try:
+                import time as _time
+                _time.sleep(0.3)  # let UI render
+                vshot = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: screen.capture_screenshot(_internal=True),
+                )
+                if vshot.get("success") and "image_base64" in vshot:
+                    response.append(
+                        ImageContent(type="image", data=vshot["image_base64"], mimeType="image/png"),
+                    )
+            except Exception:
+                pass  # verification is best-effort
+
+        return response
 
     return server
 

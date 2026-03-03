@@ -105,6 +105,51 @@ class TestGetPixelColor:
         assert 0 <= result["r"] <= 255
 
 
+class TestDownscaleForAgent:
+    def test_no_downscale_when_within_limits(self):
+        from src.tools.screen import _downscale_for_agent
+        from PIL import Image
+
+        img = Image.new("RGB", (800, 600))
+        scaled, factor = _downscale_for_agent(img, (1280, 800))
+        assert scaled.width == 800
+        assert scaled.height == 600
+        assert factor == 1.0
+
+    def test_downscales_large_image(self):
+        from src.tools.screen import _downscale_for_agent
+        from PIL import Image
+
+        img = Image.new("RGB", (2560, 1600))
+        scaled, factor = _downscale_for_agent(img, (1280, 800))
+        assert scaled.width == 1280
+        assert scaled.height == 800
+        assert factor == 2.0
+
+    def test_downscale_preserves_aspect_ratio(self):
+        from src.tools.screen import _downscale_for_agent
+        from PIL import Image
+
+        img = Image.new("RGB", (3840, 2160))  # 16:9
+        scaled, factor = _downscale_for_agent(img, (1280, 800))
+        # 3840/1280 = 3.0, 2160/800 = 2.7 → limited by height
+        assert scaled.width <= 1280
+        assert scaled.height <= 800
+        # Aspect ratio preserved
+        orig_ratio = 3840 / 2160
+        new_ratio = scaled.width / scaled.height
+        assert abs(orig_ratio - new_ratio) < 0.01
+
+    def test_screenshot_includes_scale_metadata(self):
+        from src.tools.screen import capture_screenshot
+
+        result = capture_screenshot(region={"left": 0, "top": 0, "width": 100, "height": 100})
+        assert result["success"] is True
+        assert "screenshot_scale" in result
+        assert "original_width" in result
+        assert "original_height" in result
+
+
 class TestListWindows:
     def test_returns_window_list(self):
         from src.tools.screen import list_windows_tool

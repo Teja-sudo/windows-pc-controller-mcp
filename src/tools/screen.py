@@ -12,10 +12,37 @@ from src.utils.win32_helpers import enumerate_windows, get_window_rect_by_title,
 from src.utils.dpi import get_dpi_scale_factor
 from src.security.masking import filter_windows, should_redact_window
 from src.utils.errors import tool_error, tool_success, NOT_FOUND, OS_ERROR, DEPENDENCY_MISSING
+from src.utils.context import set_screenshot_scale
 
 # Cached RapidOCR engine — models load once, reuse across all calls
 _ocr_engine = None
 _OCR_MAX_DIMENSION = 1920  # Downscale images larger than this for faster OCR
+
+# Default max resolution for agent screenshots (Anthropic recommends XGA/WXGA)
+_DEFAULT_MAX_RESOLUTION = (1280, 800)
+
+
+def _downscale_for_agent(
+    img: Image.Image,
+    max_resolution: tuple[int, int] | None = None,
+) -> tuple[Image.Image, float]:
+    """Downscale a screenshot to a resolution optimal for agent vision models.
+
+    Anthropic recommends XGA (1024×768) or WXGA (1280×800) for best
+    accuracy-to-cost ratio.  Returns ``(scaled_image, scale_factor)``
+    where *scale_factor* is ``original_width / new_width``.
+    """
+    max_w, max_h = max_resolution or _DEFAULT_MAX_RESOLUTION
+    if img.width <= max_w and img.height <= max_h:
+        return img, 1.0
+
+    ratio = min(max_w / img.width, max_h / img.height)
+    new_w = int(img.width * ratio)
+    new_h = int(img.height * ratio)
+    scaled = img.resize((new_w, new_h), Image.LANCZOS)
+    # scale_factor converts screenshot coords → screen coords
+    scale_factor = img.width / new_w
+    return scaled, scale_factor
 
 
 def capture_screenshot(
@@ -23,8 +50,16 @@ def capture_screenshot(
     region: dict[str, int] | None = None,
     blocked_apps: list[str] | None = None,
     window_title: str | None = None,
+    max_resolution: tuple[int, int] | None = None,
+    _internal: bool = False,
 ) -> dict[str, Any]:
-    """Capture a screenshot and return as base64 PNG."""
+    """Capture a screenshot and return as base64 PNG.
+
+    Args:
+        max_resolution: (max_width, max_height) to downscale for agent vision.
+            Defaults to (1280, 800) per Anthropic recommendation.
+        _internal: If True, skip downscaling (used by verification screenshots).
+    """
     try:
         # Window-specific capture: find the window rect first
         if window_title and not region:
@@ -52,12 +87,23 @@ def capture_screenshot(
             screenshot = sct.grab(grab_area)
             img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
 
+        original_w, original_h = img.width, img.height
+
+        # Downscale for agent vision unless this is an internal/verification capture
+        screenshot_scale = 1.0
+        if not _internal:
+            img, screenshot_scale = _downscale_for_agent(img, max_resolution)
+            set_screenshot_scale(screenshot_scale)
+
         return {
             "success": True,
             "image_base64": pil_to_base64(img),
             "width": img.width,
             "height": img.height,
+            "original_width": original_w,
+            "original_height": original_h,
             "dpi_scale": get_dpi_scale_factor(),
+            "screenshot_scale": screenshot_scale,
             "active_window": get_active_window_title(),
         }
     except Exception as e:

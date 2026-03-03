@@ -3,6 +3,7 @@ security:
   confirm_dangerous_actions: true
   confirmation_timeout_seconds: 60
   audit_logging: true
+  verification_screenshots: true
 
   masking:
     enabled: true
@@ -19,7 +20,7 @@ security:
   rate_limits:
     mouse: 60
     keyboard: 120
-    screenshot: 10
+    screenshot: 30
     adb: 30
     gamepad: 120
 

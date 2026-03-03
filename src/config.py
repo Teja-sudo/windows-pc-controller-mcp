@@ -25,7 +25,7 @@ class MaskingConfig(BaseModel):
 class RateLimitsConfig(BaseModel):
     mouse: int = 60
     keyboard: int = 120
-    screenshot: int = 10
+    screenshot: int = 30
     adb: int = 30
     gamepad: int = 120
 
@@ -61,6 +61,7 @@ class SecurityConfig(BaseModel):
     confirm_dangerous_actions: bool = True
     confirmation_timeout_seconds: int = 60
     audit_logging: bool = True
+    verification_screenshots: bool = True
     masking: MaskingConfig = Field(default_factory=MaskingConfig)
     rate_limits: RateLimitsConfig = Field(default_factory=RateLimitsConfig)
     keyboard: KeyboardSecurityConfig = Field(default_factory=KeyboardSecurityConfig)
