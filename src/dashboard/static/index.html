@@ -483,6 +483,13 @@
       font-size: 0.8125rem;
     }
 
+    /* ── Rate Limits Tab ────────────────────────────────────── */
+    .rate-limits-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
     /* ── Responsive ────────────────────────────────────────── */
     @media (max-width: 768px) {
       .container {
@@ -562,9 +569,8 @@
 
           <!-- ── Tab 3: Rate Limits ────────────────────────── -->
           <sl-tab-panel name="rate-limits">
-            <!-- Rate Limits tab content (Task 7) -->
-            <div class="tab-placeholder">
-              Rate limit controls will appear here.
+            <div class="rate-limits-container" id="rateLimitsContainer">
+              <!-- Populated by renderRateLimitsTab() -->
             </div>
           </sl-tab-panel>
 
@@ -1426,6 +1432,53 @@
     // ── Listen for config-loaded (Security) ────────────────
     window.addEventListener('config-loaded', () => {
       renderSecurityTab();
+    });
+
+    // ── Rate Limits Tab ─────────────────────────────────
+
+    /** Rate limit categories with defaults and display labels */
+    const RATE_LIMIT_CATEGORIES = [
+      { key: 'mouse',      label: 'Mouse Actions',      defaultVal: 60  },
+      { key: 'keyboard',   label: 'Keyboard Actions',   defaultVal: 120 },
+      { key: 'screenshot', label: 'Screenshots',        defaultVal: 10  },
+      { key: 'adb',        label: 'ADB Commands',       defaultVal: 30  },
+      { key: 'gamepad',    label: 'Gamepad Actions',     defaultVal: 120 },
+    ];
+
+    /**
+     * Render the Rate Limits tab from state.config.security.rate_limits.
+     */
+    function renderRateLimitsTab() {
+      const container = document.getElementById('rateLimitsContainer');
+      container.replaceChildren();
+
+      const sec = state.config?.security;
+      if (!sec) return;
+
+      // Ensure rate_limits object exists
+      if (!sec.rate_limits) sec.rate_limits = {};
+
+      const { card, body } = createSecurityCard('Rate Limits', 'speedometer2');
+
+      for (const { key, label, defaultVal } of RATE_LIMIT_CATEGORIES) {
+        const currentVal = sec.rate_limits[key] ?? defaultVal;
+
+        body.appendChild(createRangeRow(
+          label,
+          `rate_limits.${key}`,
+          currentVal,
+          1, 500, 5,
+          ' calls/min',
+          (val) => { state.config.security.rate_limits[key] = val; }
+        ));
+      }
+
+      container.appendChild(card);
+    }
+
+    // ── Listen for config-loaded (Rate Limits) ──────────────
+    window.addEventListener('config-loaded', () => {
+      renderRateLimitsTab();
     });
 
     // ── Init ──────────────────────────────────────────────
