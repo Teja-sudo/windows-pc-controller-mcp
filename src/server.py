@@ -17,6 +17,7 @@ from src.config import load_config, AppConfig
 from src.security.middleware import SecurityMiddleware
 from src.security.confirmation_popup import show_confirmation, ConfirmationResult
 from src.utils.context import get_context
+from src.utils.params import normalize_params
 
 from src.tools import screen, mouse, keyboard, gamepad, adb, system, clipboard, compound
 
@@ -517,6 +518,71 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+
+    # New tools (Phase 7, Batch 3)
+    {
+        "name": "window_manage",
+        "description": (
+            "Manage a window's position and state: maximize, minimize, restore, resize, move, "
+            "snap_left, or snap_right. Provide title or process to identify the window. "
+            "Use list_windows to find window titles. For resize, provide width+height. "
+            "For move, provide x+y. Snap positions the window on the left or right half of the screen."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["maximize", "minimize", "restore", "resize", "move", "snap_left", "snap_right"], "description": "Window management action"},
+                "title": {"type": "string", "description": "Window title substring to match"},
+                "process": {"type": "string", "description": "Process name to match (e.g., 'notepad.exe')"},
+                "width": {"type": "integer", "description": "New window width (for resize)"},
+                "height": {"type": "integer", "description": "New window height (for resize)"},
+                "x": {"type": "integer", "description": "New window X position (for move)"},
+                "y": {"type": "integer", "description": "New window Y position (for move)"},
+            },
+            "required": ["action"],
+        },
+    },
+    {
+        "name": "get_health",
+        "description": (
+            "Diagnostic snapshot: OCR engine status, DPI scale, ADB availability, ViGEm driver, "
+            "screen dimensions, and total tool count. Call this once at session start to understand "
+            "the system's capabilities before planning multi-step workflows."
+        ),
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "open_url",
+        "description": (
+            "Open a URL in the default web browser. Use this instead of launch_app for web pages. "
+            "After opening, use wait_for_window to confirm the browser tab loaded. "
+            "URL must start with http:// or https://."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "Full URL to open (must start with http:// or https://)"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "type_text",
+        "description": (
+            "Smart text input — auto-selects the fastest method. Short text (<50 chars) is typed "
+            "character by character. Long text (≥50 chars) is pasted via clipboard+Ctrl+V, which is "
+            "100x faster. PREFER THIS over keyboard_type for any text input. "
+            "Use method='type' to force character-by-character, or method='paste' to force clipboard."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "The text to type or paste"},
+                "method": {"type": "string", "enum": ["auto", "type", "paste"], "default": "auto", "description": "Input method: auto (default), type (char-by-char), paste (clipboard+Ctrl+V)"},
+            },
+            "required": ["text"],
+        },
+    },
 ]
 
 
@@ -575,6 +641,7 @@ def _scroll_params(params: dict[str, Any]) -> dict[str, int]:
 
 def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) -> dict[str, Any]:
     """Route a tool call to the correct handler function."""
+    params = normalize_params(tool_name, params)
     blocked_apps = config.security.masking.blocked_apps
 
     handlers: dict[str, Any] = {
@@ -680,6 +747,23 @@ def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) ->
             process=params.get("process"),
             timeout=params.get("timeout", 10.0),
             poll_interval=params.get("poll_interval", 0.5),
+        ),
+
+        "window_manage": lambda: system.window_manage(
+            action=params["action"],
+            title=params.get("title"),
+            process=params.get("process"),
+            width=params.get("width"),
+            height=params.get("height"),
+            x=params.get("x"),
+            y=params.get("y"),
+            blocked_apps=blocked_apps,
+        ),
+        "get_health": lambda: system.get_health(),
+        "open_url": lambda: system.open_url(url=params["url"]),
+        "type_text": lambda: compound.type_text(
+            text=params["text"],
+            method=params.get("method", "auto"),
         ),
     }
 

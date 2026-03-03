@@ -6,6 +6,9 @@ from typing import Any
 
 from src.tools.screen import capture_screenshot, ocr_extract_text
 from src.tools.mouse import mouse_click
+from src.tools.keyboard import keyboard_type as _keyboard_type
+from src.tools.keyboard import keyboard_hotkey
+from src.tools.clipboard import clipboard_write
 from src.utils.win32_helpers import enumerate_windows, _normalize_unicode
 from src.utils.errors import tool_error, tool_success, NOT_FOUND, INVALID_PARAMS, TIMEOUT, OS_ERROR
 
@@ -138,3 +141,65 @@ def wait_for_window(
         )
     except Exception as e:
         return tool_error(str(e), OS_ERROR, suggestion="Check window title/process name spelling")
+
+
+_PASTE_THRESHOLD = 50  # characters — above this, clipboard+paste is 100x faster
+
+
+def type_text(
+    text: str,
+    method: str = "auto",
+) -> dict[str, Any]:
+    """Smart text input — auto-selects between typing and clipboard paste.
+
+    For short text (<50 chars), types character by character.
+    For long text (≥50 chars), uses clipboard + Ctrl+V for 100x speed.
+
+    Args:
+        text: The text to type.
+        method: "auto" (default), "type" (force char-by-char), "paste" (force clipboard).
+    """
+    if method not in ("auto", "type", "paste"):
+        return tool_error(
+            f"Invalid method '{method}'. Use 'auto', 'type', or 'paste'.",
+            INVALID_PARAMS,
+        )
+
+    if not text:
+        return tool_error("text must not be empty", INVALID_PARAMS)
+
+    try:
+        use_paste = method == "paste" or (method == "auto" and len(text) >= _PASTE_THRESHOLD)
+
+        if use_paste:
+            # Write to clipboard then paste
+            clip_result = clipboard_write(text)
+            if not clip_result.get("success"):
+                # Fall back to typing if clipboard fails
+                result = _keyboard_type(text, speed=0.02)
+                if not result.get("success"):
+                    return result
+                return tool_success(
+                    f"Typed {len(text)} characters (clipboard unavailable)",
+                    method_used="type", characters=len(text),
+                )
+
+            time.sleep(0.05)  # small delay for clipboard to settle
+            paste_result = keyboard_hotkey("ctrl+v")
+            if not paste_result.get("success"):
+                return paste_result
+            return tool_success(
+                f"Pasted {len(text)} characters via clipboard",
+                method_used="paste", characters=len(text),
+            )
+        else:
+            # Type character by character
+            result = _keyboard_type(text, speed=0.02)
+            if not result.get("success"):
+                return result
+            return tool_success(
+                f"Typed {len(text)} characters",
+                method_used="type", characters=len(text),
+            )
+    except Exception as e:
+        return tool_error(str(e), OS_ERROR, suggestion="Ensure the target window is focused")

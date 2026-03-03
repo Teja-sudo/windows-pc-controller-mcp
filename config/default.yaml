@@ -108,3 +108,11 @@ tools:
     enabled: true
   wait_for_window:
     enabled: true
+  window_manage:
+    enabled: true
+  get_health:
+    enabled: true
+  open_url:
+    enabled: true
+  type_text:
+    enabled: true

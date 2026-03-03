@@ -1,4 +1,4 @@
-"""Tests for compound tools — click_text, wait_for_window."""
+"""Tests for compound tools — click_text, wait_for_window, type_text."""
 import sys
 import time
 import pytest
@@ -190,3 +190,113 @@ class TestWaitForWindow:
 
         result = wait_for_window(title="Found", timeout=100, poll_interval=0.2)
         assert result["success"] is True
+
+
+# ---------------------------------------------------------------------------
+# type_text
+# ---------------------------------------------------------------------------
+class TestTypeText:
+    @patch("src.tools.compound._keyboard_type")
+    def test_short_text_uses_typing(self, mock_type):
+        from src.tools.compound import type_text
+
+        mock_type.return_value = {"success": True}
+
+        result = type_text("Hello")
+        assert result["success"] is True
+        assert result["method_used"] == "type"
+        assert result["characters"] == 5
+        mock_type.assert_called_once_with("Hello", speed=0.02)
+
+    @patch("src.tools.compound.keyboard_hotkey")
+    @patch("src.tools.compound.clipboard_write")
+    def test_long_text_uses_paste(self, mock_clip, mock_hotkey):
+        from src.tools.compound import type_text
+
+        mock_clip.return_value = {"success": True}
+        mock_hotkey.return_value = {"success": True}
+
+        long_text = "x" * 100
+        result = type_text(long_text)
+        assert result["success"] is True
+        assert result["method_used"] == "paste"
+        assert result["characters"] == 100
+        mock_clip.assert_called_once_with(long_text)
+        mock_hotkey.assert_called_once_with("ctrl+v")
+
+    @patch("src.tools.compound._keyboard_type")
+    def test_force_type_method(self, mock_type):
+        from src.tools.compound import type_text
+
+        mock_type.return_value = {"success": True}
+
+        long_text = "x" * 100
+        result = type_text(long_text, method="type")
+        assert result["success"] is True
+        assert result["method_used"] == "type"
+        mock_type.assert_called_once_with(long_text, speed=0.02)
+
+    @patch("src.tools.compound.keyboard_hotkey")
+    @patch("src.tools.compound.clipboard_write")
+    def test_force_paste_method(self, mock_clip, mock_hotkey):
+        from src.tools.compound import type_text
+
+        mock_clip.return_value = {"success": True}
+        mock_hotkey.return_value = {"success": True}
+
+        result = type_text("Hi", method="paste")
+        assert result["success"] is True
+        assert result["method_used"] == "paste"
+        mock_clip.assert_called_once_with("Hi")
+
+    def test_invalid_method(self):
+        from src.tools.compound import type_text
+
+        result = type_text("test", method="magic")
+        assert result["success"] is False
+        assert "magic" in result["error"]
+
+    def test_empty_text(self):
+        from src.tools.compound import type_text
+
+        result = type_text("")
+        assert result["success"] is False
+        assert "empty" in result["error"]
+
+    @patch("src.tools.compound._keyboard_type")
+    @patch("src.tools.compound.clipboard_write")
+    def test_clipboard_failure_falls_back_to_typing(self, mock_clip, mock_type):
+        from src.tools.compound import type_text
+
+        mock_clip.return_value = {"success": False, "error": "clipboard locked"}
+        mock_type.return_value = {"success": True}
+
+        long_text = "x" * 100
+        result = type_text(long_text)
+        assert result["success"] is True
+        assert result["method_used"] == "type"
+        assert "clipboard unavailable" in result["message"].lower()
+
+    @patch("src.tools.compound._keyboard_type")
+    def test_49_chars_uses_typing(self, mock_type):
+        """Boundary test: text just under threshold uses typing."""
+        from src.tools.compound import type_text
+
+        mock_type.return_value = {"success": True}
+
+        text = "x" * 49
+        result = type_text(text)
+        assert result["method_used"] == "type"
+
+    @patch("src.tools.compound.keyboard_hotkey")
+    @patch("src.tools.compound.clipboard_write")
+    def test_50_chars_uses_paste(self, mock_clip, mock_hotkey):
+        """Boundary test: text at threshold uses paste."""
+        from src.tools.compound import type_text
+
+        mock_clip.return_value = {"success": True}
+        mock_hotkey.return_value = {"success": True}
+
+        text = "x" * 50
+        result = type_text(text)
+        assert result["method_used"] == "paste"

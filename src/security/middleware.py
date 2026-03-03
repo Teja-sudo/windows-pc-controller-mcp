@@ -27,6 +27,8 @@ TOOL_CATEGORY = {
     "get_system_info": "system",
     "clipboard_read": "clipboard", "clipboard_write": "clipboard",
     "click_text": "mouse", "wait_for_window": "system",
+    "window_manage": "system", "get_health": "system", "open_url": "system",
+    "type_text": "keyboard",
 }
 
 

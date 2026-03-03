@@ -53,9 +53,9 @@ def _make_config(**overrides):
 # ===========================================================================
 
 class TestToolDefinitions:
-    def test_tool_count_is_29(self):
+    def test_tool_count_is_33(self):
         from src.server import TOOL_DEFINITIONS
-        assert len(TOOL_DEFINITIONS) == 29
+        assert len(TOOL_DEFINITIONS) == 33
 
     def test_all_definitions_have_required_keys(self):
         from src.server import TOOL_DEFINITIONS
@@ -70,7 +70,7 @@ class TestToolDefinitions:
         assert len(names) == len(set(names)), f"Duplicate tool names: {names}"
 
     def test_expected_tool_names_present(self):
-        """Verify all 29 expected tool names are registered."""
+        """Verify all 33 expected tool names are registered."""
         from src.server import TOOL_DEFINITIONS
 
         expected = {
@@ -86,12 +86,13 @@ class TestToolDefinitions:
             "gamepad_connect", "gamepad_input", "gamepad_disconnect",
             # ADB (4)
             "adb_tap", "adb_swipe", "adb_key_event", "adb_shell",
-            # System (4)
+            # System (7)
             "launch_app", "focus_window", "close_window", "get_system_info",
+            "window_manage", "get_health", "open_url",
             # Clipboard (2)
             "clipboard_read", "clipboard_write",
             # Compound (3)
-            "click_text", "wait_for_window",
+            "click_text", "wait_for_window", "type_text",
         }
         actual = {t["name"] for t in TOOL_DEFINITIONS}
         missing = expected - actual
@@ -384,6 +385,68 @@ class TestDispatchTool:
         config = _make_config()
         _dispatch_tool("clipboard_write", {"text": "world"}, config)
         mock_fn.assert_called_once_with(text="world")
+
+    @patch("src.tools.system.window_manage")
+    def test_dispatches_window_manage(self, mock_fn):
+        from src.server import _dispatch_tool
+
+        mock_fn.return_value = {"success": True}
+        config = _make_config()
+        _dispatch_tool("window_manage", {"action": "maximize", "title": "Notepad"}, config)
+        mock_fn.assert_called_once()
+
+    @patch("src.tools.system.get_health")
+    def test_dispatches_get_health(self, mock_fn):
+        from src.server import _dispatch_tool
+
+        mock_fn.return_value = {"success": True}
+        config = _make_config()
+        _dispatch_tool("get_health", {}, config)
+        mock_fn.assert_called_once()
+
+    @patch("src.tools.system.open_url")
+    def test_dispatches_open_url(self, mock_fn):
+        from src.server import _dispatch_tool
+
+        mock_fn.return_value = {"success": True}
+        config = _make_config()
+        _dispatch_tool("open_url", {"url": "https://example.com"}, config)
+        mock_fn.assert_called_once_with(url="https://example.com")
+
+    @patch("src.tools.compound.type_text")
+    def test_dispatches_type_text(self, mock_fn):
+        from src.server import _dispatch_tool
+
+        mock_fn.return_value = {"success": True}
+        config = _make_config()
+        _dispatch_tool("type_text", {"text": "hello"}, config)
+        mock_fn.assert_called_once_with(text="hello", method="auto")
+
+    def test_param_normalization_alias(self):
+        """Test that parameter aliases are resolved before dispatch."""
+        from src.server import _dispatch_tool
+
+        with patch("src.tools.system.focus_window") as mock_fn:
+            mock_fn.return_value = {"success": True}
+            config = _make_config()
+            # Use alias "window_title" instead of "title"
+            _dispatch_tool("focus_window", {"window_title": "Notepad"}, config)
+            mock_fn.assert_called_once()
+            call_args = mock_fn.call_args
+            assert call_args.kwargs.get("title") == "Notepad"
+
+    def test_param_normalization_type_coercion(self):
+        """Test that string numbers are coerced to int for coordinate fields."""
+        from src.server import _dispatch_tool
+
+        with patch("src.tools.mouse.mouse_click") as mock_fn:
+            mock_fn.return_value = {"success": True}
+            config = _make_config()
+            _dispatch_tool("mouse_click", {"x": "100", "y": "200"}, config)
+            mock_fn.assert_called_once()
+            call_args = mock_fn.call_args
+            assert call_args.kwargs.get("x") == 100
+            assert call_args.kwargs.get("y") == 200
 
 
 # ===========================================================================

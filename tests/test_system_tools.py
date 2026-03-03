@@ -1,9 +1,12 @@
-"""Tests for system management tools — launch_app, focus_window, close_window, get_system_info."""
+"""Tests for system management tools — launch_app, focus_window, close_window, get_system_info, window_manage, open_url, get_health."""
 import sys
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
 
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+
+if sys.platform == "win32":
+    import win32con
 
 
 # ---------------------------------------------------------------------------
@@ -310,3 +313,276 @@ class TestGetSystemInfo:
         assert "username" not in result_str
         assert "hostname" not in result_str
         assert "users\\" not in result_str
+
+
+# ---------------------------------------------------------------------------
+# window_manage
+# ---------------------------------------------------------------------------
+class TestWindowManage:
+    def test_invalid_action(self):
+        from src.tools.system import window_manage
+
+        result = window_manage(action="explode")
+        assert result["success"] is False
+        assert "error_code" in result
+        assert "explode" in result["error"]
+
+    def test_requires_title_or_process(self):
+        from src.tools.system import window_manage
+
+        result = window_manage(action="maximize")
+        assert result["success"] is False
+        assert "either" in result["error"].lower() or "not found" in result["error"].lower()
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_maximize_window(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+
+        result = window_manage(action="maximize", title="Notepad")
+        assert result["success"] is True
+        mock_win32gui.ShowWindow.assert_called_once_with(12345, win32con.SW_MAXIMIZE)
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_minimize_window(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+
+        result = window_manage(action="minimize", title="Notepad")
+        assert result["success"] is True
+        mock_win32gui.ShowWindow.assert_called_once_with(12345, win32con.SW_MINIMIZE)
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_restore_window(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+
+        result = window_manage(action="restore", title="Notepad")
+        assert result["success"] is True
+        mock_win32gui.ShowWindow.assert_called_once_with(12345, win32con.SW_RESTORE)
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_resize_requires_width_and_height(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+
+        result = window_manage(action="resize", title="Notepad", width=800)
+        assert result["success"] is False
+        assert "height" in result["error"]
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_resize_window(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+        mock_win32gui.GetWindowRect.return_value = (100, 100, 500, 400)
+
+        result = window_manage(action="resize", title="Notepad", width=800, height=600)
+        assert result["success"] is True
+        mock_win32gui.MoveWindow.assert_called_once_with(12345, 100, 100, 800, 600, True)
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_move_requires_x_and_y(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+
+        result = window_manage(action="move", title="Notepad", x=100)
+        assert result["success"] is False
+        assert "y" in result["error"]
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_move_window(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+        mock_win32gui.GetWindowRect.return_value = (100, 100, 500, 400)
+
+        result = window_manage(action="move", title="Notepad", x=200, y=300)
+        assert result["success"] is True
+        # Width = 500-100=400, Height = 400-100=300
+        mock_win32gui.MoveWindow.assert_called_once_with(12345, 200, 300, 400, 300, True)
+
+    @patch("src.tools.system.enumerate_windows")
+    def test_blocked_app_denied(self, mock_enum):
+        from src.tools.system import window_manage
+
+        result = window_manage(
+            action="maximize", title="1Password", blocked_apps=["1Password"],
+        )
+        assert result["success"] is False
+        assert result["error_code"] == "BLOCKED"
+
+    @patch("src.tools.system.enumerate_windows")
+    def test_window_not_found(self, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = []
+        result = window_manage(action="maximize", title="NonExistent")
+        assert result["success"] is False
+        assert result["error_code"] == "NOT_FOUND"
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    def test_find_by_process(self, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Untitled", "process_name": "notepad.exe", "hwnd": 999},
+        ]
+
+        result = window_manage(action="maximize", process="notepad.exe")
+        assert result["success"] is True
+        mock_win32gui.ShowWindow.assert_called_once_with(999, win32con.SW_MAXIMIZE)
+
+    @patch("src.tools.system.enumerate_windows")
+    @patch("src.tools.system.win32gui")
+    @patch("mss.mss")
+    def test_snap_left(self, mock_mss_cls, mock_win32gui, mock_enum):
+        from src.tools.system import window_manage
+
+        mock_enum.return_value = [
+            {"title": "Notepad", "process_name": "notepad.exe", "hwnd": 12345},
+        ]
+        # Mock mss context manager
+        mock_sct = MagicMock()
+        mock_sct.monitors = [
+            {},  # monitor 0 (all monitors combined)
+            {"left": 0, "top": 0, "width": 1920, "height": 1080},
+        ]
+        mock_mss_cls.return_value.__enter__ = MagicMock(return_value=mock_sct)
+        mock_mss_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        result = window_manage(action="snap_left", title="Notepad")
+        assert result["success"] is True
+        mock_win32gui.ShowWindow.assert_called_once_with(12345, win32con.SW_RESTORE)
+        mock_win32gui.MoveWindow.assert_called_once_with(12345, 0, 0, 960, 1080, True)
+
+
+# ---------------------------------------------------------------------------
+# open_url
+# ---------------------------------------------------------------------------
+class TestOpenUrl:
+    @patch("src.tools.system.webbrowser.open")
+    def test_opens_valid_url(self, mock_open):
+        from src.tools.system import open_url
+
+        result = open_url("https://example.com")
+        assert result["success"] is True
+        assert result["url"] == "https://example.com"
+        mock_open.assert_called_once_with("https://example.com")
+
+    @patch("src.tools.system.webbrowser.open")
+    def test_opens_http_url(self, mock_open):
+        from src.tools.system import open_url
+
+        result = open_url("http://example.com")
+        assert result["success"] is True
+        mock_open.assert_called_once_with("http://example.com")
+
+    def test_rejects_non_http_url(self):
+        from src.tools.system import open_url
+
+        result = open_url("ftp://example.com")
+        assert result["success"] is False
+        assert result["error_code"] == "INVALID_PARAMS"
+        assert "http" in result["suggestion"]
+
+    def test_rejects_bare_domain(self):
+        from src.tools.system import open_url
+
+        result = open_url("example.com")
+        assert result["success"] is False
+        assert result["error_code"] == "INVALID_PARAMS"
+
+    @patch("src.tools.system.webbrowser.open")
+    def test_handles_browser_error(self, mock_open):
+        from src.tools.system import open_url
+
+        mock_open.side_effect = Exception("No default browser")
+        result = open_url("https://example.com")
+        assert result["success"] is False
+        assert "browser" in result["suggestion"].lower()
+
+
+# ---------------------------------------------------------------------------
+# get_health
+# ---------------------------------------------------------------------------
+class TestGetHealth:
+    @patch("src.tools.system.shutil.which")
+    @patch("src.tools.screen.get_screen_info")
+    @patch("src.utils.dpi.get_dpi_scale_factor")
+    def test_returns_health_info(self, mock_dpi, mock_screen, mock_which):
+        from src.tools.system import get_health
+
+        mock_dpi.return_value = 1.0
+        mock_screen.return_value = {
+            "success": True,
+            "primary_monitor": {"width": 1920, "height": 1080},
+            "monitor_count": 2,
+        }
+        mock_which.return_value = "/usr/bin/adb"
+
+        result = get_health()
+        assert result["success"] is True
+        assert result["dpi_scale"] == 1.0
+        assert result["screen"]["width"] == 1920
+        assert result["screen"]["height"] == 1080
+        assert result["screen"]["monitors"] == 2
+        assert result["adb_available"] is True
+        assert "ocr_engine" in result
+        assert "tool_count" in result
+
+    @patch("src.tools.system.shutil.which")
+    @patch("src.tools.screen.get_screen_info")
+    @patch("src.utils.dpi.get_dpi_scale_factor")
+    def test_adb_not_available(self, mock_dpi, mock_screen, mock_which):
+        from src.tools.system import get_health
+
+        mock_dpi.return_value = 1.25
+        mock_screen.return_value = {"success": True, "primary_monitor": {"width": 1920, "height": 1080}, "monitor_count": 1}
+        mock_which.return_value = None
+
+        result = get_health()
+        assert result["success"] is True
+        assert result["adb_available"] is False
+
+    @patch("src.tools.system.shutil.which")
+    @patch("src.tools.screen.get_screen_info")
+    @patch("src.utils.dpi.get_dpi_scale_factor")
+    def test_screen_info_failure_still_returns_health(self, mock_dpi, mock_screen, mock_which):
+        from src.tools.system import get_health
+
+        mock_dpi.return_value = 1.0
+        mock_screen.return_value = {"success": False, "error": "no display"}
+        mock_which.return_value = None
+
+        result = get_health()
+        assert result["success"] is True
+        # screen key should be absent when screen info fails
+        assert "screen" not in result
