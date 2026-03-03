@@ -23,6 +23,30 @@ class TestWindowFilter:
         filtered = filter_windows(windows, blocked_apps=[])
         assert len(filtered) == 1
 
+    def test_filters_by_process_name_key(self):
+        """Regression: enumerate_windows uses 'process_name', not 'process'."""
+        from src.security.masking import filter_windows
+
+        windows = [
+            {"title": "My Vault", "process_name": "1password.exe"},
+            {"title": "Notepad", "process_name": "notepad.exe"},
+        ]
+        filtered = filter_windows(windows, blocked_apps=["1password"])
+        assert len(filtered) == 1
+        assert filtered[0]["title"] == "Notepad"
+
+    def test_filters_by_both_process_key_variants(self):
+        """Handles dicts with either 'process' or 'process_name' key."""
+        from src.security.masking import filter_windows
+
+        windows = [
+            {"title": "Vault", "process": "bitwarden.exe"},
+            {"title": "Editor", "process_name": "code.exe"},
+        ]
+        filtered = filter_windows(windows, blocked_apps=["bitwarden"])
+        assert len(filtered) == 1
+        assert filtered[0]["title"] == "Editor"
+
 
 class TestTextRedaction:
     def test_redacts_blocked_app_text(self):

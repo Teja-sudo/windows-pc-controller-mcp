@@ -8,7 +8,8 @@ import numpy as np
 from PIL import Image
 
 from src.utils.image_utils import pil_to_base64, find_template
-from src.utils.win32_helpers import enumerate_windows
+from src.utils.win32_helpers import enumerate_windows, get_window_rect_by_title, get_active_window_title
+from src.utils.dpi import get_dpi_scale_factor
 from src.security.masking import filter_windows, should_redact_window
 
 # Cached RapidOCR engine — models load once, reuse across all calls
@@ -20,9 +21,21 @@ def capture_screenshot(
     monitor: int = 0,
     region: dict[str, int] | None = None,
     blocked_apps: list[str] | None = None,
+    window_title: str | None = None,
 ) -> dict[str, Any]:
     """Capture a screenshot and return as base64 PNG."""
     try:
+        # Window-specific capture: find the window rect first
+        if window_title and not region:
+            rect = get_window_rect_by_title(window_title)
+            if rect is None:
+                return {
+                    "success": False,
+                    "error": f"No window found matching '{window_title}'",
+                    "suggestion": "Use list_windows to see available window titles",
+                }
+            region = rect
+
         with mss.mss() as sct:
             if region:
                 grab_area = {
@@ -44,6 +57,8 @@ def capture_screenshot(
             "image_base64": pil_to_base64(img),
             "width": img.width,
             "height": img.height,
+            "dpi_scale": get_dpi_scale_factor(),
+            "active_window": get_active_window_title(),
         }
     except Exception as e:
         return {"success": False, "error": str(e), "suggestion": "Try specifying a different monitor index or region"}
@@ -228,6 +243,31 @@ def get_pixel_color(x: int, y: int) -> dict[str, Any]:
         return {"success": True, "r": r, "g": g, "b": b, "hex": f"#{r:02x}{g:02x}{b:02x}"}
     except Exception as e:
         return {"success": False, "error": str(e), "suggestion": "Check that x,y coordinates are within screen bounds"}
+
+
+def get_screen_info() -> dict[str, Any]:
+    """Get essential screen context: dimensions, DPI scale, monitor count, active window."""
+    try:
+        with mss.mss() as sct:
+            monitors = sct.monitors
+            # monitors[0] is the virtual screen (all monitors combined)
+            # monitors[1+] are individual monitors
+            primary = monitors[1] if len(monitors) > 1 else monitors[0]
+
+        return {
+            "success": True,
+            "primary_monitor": {
+                "width": primary["width"],
+                "height": primary["height"],
+                "left": primary["left"],
+                "top": primary["top"],
+            },
+            "monitor_count": len(monitors) - 1,  # exclude virtual screen
+            "dpi_scale": get_dpi_scale_factor(),
+            "active_window": get_active_window_title(),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "suggestion": "This tool requires Windows"}
 
 
 def list_windows_tool(blocked_apps: list[str] | None = None) -> dict[str, Any]:

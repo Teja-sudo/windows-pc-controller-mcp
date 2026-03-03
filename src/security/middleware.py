@@ -20,11 +20,13 @@ TOOL_CATEGORY = {
     "keyboard_type": "keyboard", "keyboard_hotkey": "keyboard", "keyboard_press": "keyboard",
     "capture_screenshot": "screenshot", "ocr_extract_text": "screenshot",
     "find_on_screen": "screenshot", "get_pixel_color": "screenshot", "list_windows": "screenshot",
+    "get_screen_info": "screenshot",
     "adb_tap": "adb", "adb_swipe": "adb", "adb_key_event": "adb", "adb_shell": "adb",
     "gamepad_connect": "gamepad", "gamepad_input": "gamepad", "gamepad_disconnect": "gamepad",
     "launch_app": "system", "focus_window": "system", "close_window": "system",
     "get_system_info": "system",
     "clipboard_read": "clipboard", "clipboard_write": "clipboard",
+    "click_text": "mouse", "wait_for_window": "system",
 }
 
 

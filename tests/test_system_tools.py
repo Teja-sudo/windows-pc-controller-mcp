@@ -1,7 +1,7 @@
 """Tests for system management tools — launch_app, focus_window, close_window, get_system_info."""
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 
@@ -59,29 +59,69 @@ class TestFocusWindow:
         from src.tools.system import focus_window
 
         mock_focus.return_value = True
-        result = focus_window("Notepad")
+        result = focus_window(title="Notepad")
         assert result["success"] is True
         assert "focused" in result["message"].lower()
         mock_focus.assert_called_once_with("Notepad")
 
+    @patch("src.tools.system.enumerate_windows")
     @patch("src.tools.system.focus_window_by_title")
-    def test_window_not_found(self, mock_focus):
+    def test_window_not_found(self, mock_focus, mock_enum):
         from src.tools.system import focus_window
 
         mock_focus.return_value = False
-        result = focus_window("NonExistentApp")
+        mock_enum.return_value = [{"title": "Desktop", "process_name": "explorer.exe"}]
+        result = focus_window(title="NonExistentApp")
         assert result["success"] is False
         assert "no window found" in result["error"].lower()
         assert "suggestion" in result
+        assert "available_windows" in result
 
     @patch("src.tools.system.focus_window_by_title")
     def test_handles_exception(self, mock_focus):
         from src.tools.system import focus_window
 
         mock_focus.side_effect = Exception("win32 error")
-        result = focus_window("SomeApp")
+        result = focus_window(title="SomeApp")
         assert result["success"] is False
         assert "win32 error" in result["error"]
+
+    def test_requires_title_or_process(self):
+        from src.tools.system import focus_window
+
+        result = focus_window()
+        assert result["success"] is False
+        assert "either" in result["error"].lower()
+
+    @patch("src.tools.system.focus_window_by_process")
+    def test_focus_by_process(self, mock_focus_proc):
+        from src.tools.system import focus_window
+
+        mock_focus_proc.return_value = True
+        result = focus_window(process="msedge.exe")
+        assert result["success"] is True
+        mock_focus_proc.assert_called_once_with("msedge.exe")
+
+    @patch("src.tools.system.focus_window_by_title")
+    def test_blocked_app_denied(self, mock_focus):
+        from src.tools.system import focus_window
+
+        mock_focus.return_value = True  # Would succeed without blocking
+        result = focus_window(title="1Password", blocked_apps=["1Password"])
+        assert result["success"] is False
+        assert "denied" in result["error"].lower() or "blocked" in result["error"].lower()
+
+    @patch("src.tools.system.focus_window_by_title")
+    @patch("src.tools.system.focus_window_by_process")
+    def test_falls_back_to_process_when_title_fails(self, mock_proc, mock_title):
+        from src.tools.system import focus_window
+
+        mock_title.return_value = False
+        mock_proc.return_value = True
+        result = focus_window(title="SomeTitle", process="myapp.exe")
+        assert result["success"] is True
+        mock_title.assert_called_once()
+        mock_proc.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +133,7 @@ class TestCloseWindow:
         from src.tools.system import close_window
 
         mock_close.return_value = True
-        result = close_window("Notepad")
+        result = close_window(title="Notepad")
         assert result["success"] is True
         assert "close" in result["message"].lower()
         mock_close.assert_called_once_with("Notepad")
@@ -103,7 +143,7 @@ class TestCloseWindow:
         from src.tools.system import close_window
 
         mock_close.return_value = False
-        result = close_window("NonExistentApp")
+        result = close_window(title="NonExistentApp")
         assert result["success"] is False
         assert "no window found" in result["error"].lower()
         assert "suggestion" in result
@@ -113,9 +153,24 @@ class TestCloseWindow:
         from src.tools.system import close_window
 
         mock_close.side_effect = Exception("access denied")
-        result = close_window("SomeApp")
+        result = close_window(title="SomeApp")
         assert result["success"] is False
         assert "access denied" in result["error"]
+
+    @patch("src.tools.system.close_window_by_title")
+    def test_blocked_app_denied(self, mock_close):
+        from src.tools.system import close_window
+
+        result = close_window(title="KeePass", blocked_apps=["KeePass"])
+        assert result["success"] is False
+        assert "denied" in result["error"].lower() or "blocked" in result["error"].lower()
+        mock_close.assert_not_called()
+
+    def test_requires_title_or_process(self):
+        from src.tools.system import close_window
+
+        result = close_window()
+        assert result["success"] is False
 
 
 # ---------------------------------------------------------------------------

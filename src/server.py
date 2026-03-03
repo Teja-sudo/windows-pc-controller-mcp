@@ -1,6 +1,9 @@
 # src/server.py
-"""MCP Server entry point — registers all 26 tools with security middleware."""
+"""MCP Server entry point — registers all 29 tools with security middleware."""
 from __future__ import annotations
+
+# DPI awareness MUST be set before any screen/mouse imports
+import src.utils.dpi  # noqa: F401  — side-effect: sets process DPI awareness
 
 import asyncio
 import json
@@ -14,20 +17,26 @@ from src.config import load_config, AppConfig
 from src.security.middleware import SecurityMiddleware
 from src.security.confirmation_popup import show_confirmation, ConfirmationResult
 
-from src.tools import screen, mouse, keyboard, gamepad, adb, system, clipboard
+from src.tools import screen, mouse, keyboard, gamepad, adb, system, clipboard, compound
 
 
 # --- Tool definitions ---
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
-    # Screen (5)
+    # Screen (6)
     {
         "name": "capture_screenshot",
-        "description": "Take a screenshot of the screen, a specific monitor, or a region. Returns base64 PNG image.",
+        "description": (
+            "Capture a screenshot as base64 PNG. Use monitor=0 for all screens, monitor=1 for primary. "
+            "Specify window_title to capture a single window, or region for a pixel-precise area. "
+            "Response includes width, height, and dpi_scale — use dpi_scale to convert screenshot "
+            "coordinates to mouse coordinates if scaling is not 1.0. Prefer click_text over "
+            "screenshot+OCR+click when you need to interact with visible text."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "monitor": {"type": "integer", "description": "Monitor index (0=all, 1=primary, etc.)", "default": 0},
+                "monitor": {"type": "integer", "description": "Monitor index: 0=all screens combined, 1=primary, 2=secondary, etc.", "default": 0},
                 "region": {
                     "type": "object",
                     "properties": {
@@ -36,15 +45,19 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                         "width": {"type": "integer"},
                         "height": {"type": "integer"},
                     },
-                    "description": "Capture a specific region instead of full screen",
+                    "description": "Capture a specific pixel region. Coordinates are in screen pixels.",
                 },
-                "window_title": {"type": "string", "description": "Capture a specific window by title substring"},
+                "window_title": {"type": "string", "description": "Capture only the window matching this title substring. Ignored if region is also provided."},
             },
         },
     },
     {
         "name": "ocr_extract_text",
-        "description": "Extract text from screen or a region using OCR.",
+        "description": (
+            "Extract all visible text from the screen or a region using OCR. Returns full text and "
+            "per-word details with bounding boxes and confidence scores. Use this when you need to "
+            "read screen content. For clicking on text, prefer click_text which combines OCR and click."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -56,134 +69,192 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                         "width": {"type": "integer"},
                         "height": {"type": "integer"},
                     },
+                    "description": "Limit OCR to this screen region for faster results",
                 },
-                "monitor": {"type": "integer", "default": 0},
+                "monitor": {"type": "integer", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
             },
         },
     },
     {
         "name": "find_on_screen",
-        "description": "Find where a template image appears on screen using template matching.",
+        "description": (
+            "Find where a template image appears on screen using pixel-level template matching. "
+            "Returns match coordinates and confidence scores. Requires a base64-encoded PNG template. "
+            "Use this for finding icons, buttons, or UI elements that are visually consistent. "
+            "For text-based elements, prefer click_text or ocr_extract_text instead."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "template_base64": {"type": "string", "description": "Base64-encoded PNG of the image to find"},
-                "threshold": {"type": "number", "default": 0.8, "description": "Match confidence threshold (0-1)"},
-                "monitor": {"type": "integer", "default": 0},
+                "template_base64": {"type": "string", "description": "Base64-encoded PNG of the image to find on screen"},
+                "threshold": {"type": "number", "default": 0.8, "description": "Match confidence threshold (0.0-1.0). Lower values find more matches but with less precision."},
+                "monitor": {"type": "integer", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
             },
             "required": ["template_base64"],
         },
     },
     {
         "name": "get_pixel_color",
-        "description": "Get the RGB color of a pixel at screen coordinates.",
+        "description": (
+            "Get the RGB color of a single pixel at screen coordinates. Returns r, g, b values (0-255) "
+            "and hex string. Useful for checking UI state (e.g., is a button highlighted, is a checkbox checked). "
+            "Coordinates must be within screen bounds."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer"},
-                "y": {"type": "integer"},
+                "x": {"type": "integer", "description": "X coordinate in screen pixels"},
+                "y": {"type": "integer", "description": "Y coordinate in screen pixels"},
             },
             "required": ["x", "y"],
         },
     },
     {
         "name": "list_windows",
-        "description": "List all visible windows with titles, process names, and positions.",
+        "description": (
+            "List all visible windows with their titles, process names, and screen positions. "
+            "Use this to discover window titles for focus_window, close_window, or capture_screenshot(window_title=...). "
+            "Windows belonging to blocked apps (e.g., password managers) are automatically filtered out."
+        ),
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_screen_info",
+        "description": (
+            "Get essential screen context: primary monitor dimensions, DPI scale factor, monitor count, "
+            "and currently active window title. Call this FIRST before any coordinate-based operations "
+            "to understand the screen layout. If dpi_scale is not 1.0, screenshot pixel coordinates "
+            "differ from mouse coordinates."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
 
     # Mouse (5)
     {
         "name": "mouse_move",
-        "description": "Move the mouse cursor to coordinates.",
+        "description": (
+            "Move the mouse cursor to absolute screen coordinates, or relative to current position. "
+            "Coordinates are in physical screen pixels. Call get_screen_info first to understand "
+            "screen dimensions and DPI scaling. Returns the final cursor position."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer"},
-                "y": {"type": "integer"},
-                "relative": {"type": "boolean", "default": False, "description": "If true, move relative to current position"},
+                "x": {"type": "integer", "description": "X coordinate (absolute) or X offset (relative)"},
+                "y": {"type": "integer", "description": "Y coordinate (absolute) or Y offset (relative)"},
+                "relative": {"type": "boolean", "default": False, "description": "If true, x/y are offsets from current position instead of absolute coordinates"},
             },
             "required": ["x", "y"],
         },
     },
     {
         "name": "mouse_click",
-        "description": "Click the mouse at coordinates or current position.",
+        "description": (
+            "Click the mouse at specified coordinates or at the current cursor position. "
+            "For clicking on visible text, prefer click_text which handles OCR and coordinate "
+            "calculation automatically. Omit x/y to click at the current cursor position. "
+            "Coordinates are in physical screen pixels."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer"},
-                "y": {"type": "integer"},
+                "x": {"type": "integer", "description": "X coordinate to click at. Omit to click at current position."},
+                "y": {"type": "integer", "description": "Y coordinate to click at. Omit to click at current position."},
                 "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
-                "clicks": {"type": "integer", "default": 1, "description": "1=single, 2=double, 3=triple"},
+                "clicks": {"type": "integer", "default": 1, "description": "Number of clicks: 1=single, 2=double, 3=triple"},
             },
         },
     },
     {
         "name": "mouse_drag",
-        "description": "Click and drag from start to end coordinates.",
+        "description": (
+            "Click and drag from start coordinates to end coordinates. Useful for drag-and-drop, "
+            "selecting text, resizing windows, or drawing. The duration parameter controls drag speed "
+            "— increase it for smoother drags in applications that require it."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "start_x": {"type": "integer"},
-                "start_y": {"type": "integer"},
-                "end_x": {"type": "integer"},
-                "end_y": {"type": "integer"},
-                "button": {"type": "string", "default": "left"},
-                "duration": {"type": "number", "default": 0.5},
+                "start_x": {"type": "integer", "description": "Starting X coordinate"},
+                "start_y": {"type": "integer", "description": "Starting Y coordinate"},
+                "end_x": {"type": "integer", "description": "Ending X coordinate"},
+                "end_y": {"type": "integer", "description": "Ending Y coordinate"},
+                "button": {"type": "string", "default": "left", "description": "Mouse button to hold during drag"},
+                "duration": {"type": "number", "default": 0.5, "description": "Drag duration in seconds. Increase for smoother drags."},
             },
             "required": ["start_x", "start_y", "end_x", "end_y"],
         },
     },
     {
         "name": "mouse_scroll",
-        "description": "Scroll the mouse wheel.",
+        "description": (
+            "Scroll the mouse wheel vertically or horizontally at the current cursor position. "
+            "Positive dy scrolls up, negative dy scrolls down. Each unit is one scroll 'click'. "
+            "Move the mouse to the target area first with mouse_move before scrolling."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "dx": {"type": "integer", "default": 0, "description": "Horizontal scroll"},
-                "dy": {"type": "integer", "default": 0, "description": "Vertical scroll (positive=up, negative=down)"},
+                "dx": {"type": "integer", "default": 0, "description": "Horizontal scroll (positive=right, negative=left)"},
+                "dy": {"type": "integer", "default": 0, "description": "Vertical scroll (positive=up, negative=down). Use -3 to -5 for a page-like scroll."},
             },
         },
     },
     {
         "name": "mouse_position",
-        "description": "Get the current mouse cursor position.",
+        "description": (
+            "Get the current mouse cursor position in physical screen pixels. "
+            "Useful for debugging coordinate issues or saving/restoring cursor position."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
 
     # Keyboard (3)
     {
         "name": "keyboard_type",
-        "description": "Type a string of text character by character.",
+        "description": (
+            "Type a string of text character by character, simulating real keyboard input. "
+            "Text length is limited by config (default 500 chars). For longer text, use clipboard_write "
+            "followed by keyboard_hotkey('ctrl+v'). The speed parameter controls typing delay between characters."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "text": {"type": "string"},
-                "speed": {"type": "number", "default": 0.02, "description": "Delay between characters in seconds"},
+                "text": {"type": "string", "description": "The text to type. Must be within the configured max_type_length."},
+                "speed": {"type": "number", "default": 0.02, "description": "Delay between characters in seconds. Use 0 for instant typing."},
             },
             "required": ["text"],
         },
     },
     {
         "name": "keyboard_hotkey",
-        "description": "Press a key combination (e.g., 'ctrl+c', 'alt+tab').",
+        "description": (
+            "Press a keyboard shortcut combination. Keys are separated by '+'. "
+            "Modifier keys: ctrl, alt, shift, win. Common shortcuts: 'ctrl+c' (copy), 'ctrl+v' (paste), "
+            "'ctrl+a' (select all), 'alt+tab' (switch window), 'ctrl+shift+s' (save as). "
+            "Some dangerous hotkeys like 'ctrl+alt+delete' are blocked by security config."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "keys": {"type": "string", "description": "Key combo separated by + (e.g., ctrl+shift+s)"},
+                "keys": {"type": "string", "description": "Key combination separated by + (e.g., 'ctrl+c', 'alt+tab', 'ctrl+shift+s')"},
             },
             "required": ["keys"],
         },
     },
     {
         "name": "keyboard_press",
-        "description": "Press, release, or tap a single key.",
+        "description": (
+            "Press, release, or tap a single key. Default action is 'tap' (press+release). "
+            "Use 'press' and 'release' separately for holding keys during other operations. "
+            "Supported keys: a-z, 0-9, enter, tab, escape, space, backspace, delete, up/down/left/right, "
+            "home, end, page_up, page_down, f1-f12, insert, caps_lock, print_screen."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "key": {"type": "string"},
-                "action": {"type": "string", "enum": ["press", "release", "tap"], "default": "tap"},
+                "key": {"type": "string", "description": "Key name (e.g., 'enter', 'tab', 'escape', 'f5', 'a')"},
+                "action": {"type": "string", "enum": ["press", "release", "tap"], "default": "tap", "description": "press=hold down, release=let go, tap=press+release"},
             },
             "required": ["key"],
         },
@@ -192,90 +263,118 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     # Gamepad (3)
     {
         "name": "gamepad_connect",
-        "description": "Create a virtual Xbox 360 controller (requires ViGEmBus driver).",
+        "description": (
+            "Create a virtual Xbox 360 controller. Requires the ViGEmBus driver to be installed. "
+            "Call this once before sending any gamepad_input commands. The virtual controller "
+            "appears as a real Xbox 360 controller to all applications."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "gamepad_input",
-        "description": "Set gamepad buttons, analog sticks, and triggers.",
+        "description": (
+            "Set gamepad buttons, analog sticks, and triggers on the virtual controller. "
+            "Must call gamepad_connect first. All parameters are optional — only specified inputs "
+            "are changed. Stick values range from -1.0 to 1.0, triggers from 0.0 to 1.0."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "buttons": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Buttons to press: A, B, X, Y, LB, RB, START, BACK, DPAD_UP/DOWN/LEFT/RIGHT, LS, RS",
+                    "description": "Buttons to press: A, B, X, Y, LB, RB, START, BACK, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, LS (left stick click), RS (right stick click)",
                 },
                 "left_stick": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
-                    "description": "Left stick position (-1.0 to 1.0)",
+                    "description": "Left analog stick position. x: -1.0 (left) to 1.0 (right), y: -1.0 (down) to 1.0 (up)",
                 },
                 "right_stick": {
                     "type": "object",
                     "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+                    "description": "Right analog stick position. Same range as left_stick.",
                 },
-                "left_trigger": {"type": "number", "default": 0.0, "description": "0.0 to 1.0"},
-                "right_trigger": {"type": "number", "default": 0.0},
+                "left_trigger": {"type": "number", "default": 0.0, "description": "Left trigger pressure: 0.0 (released) to 1.0 (fully pressed)"},
+                "right_trigger": {"type": "number", "default": 0.0, "description": "Right trigger pressure: 0.0 to 1.0"},
             },
         },
     },
     {
         "name": "gamepad_disconnect",
-        "description": "Disconnect the virtual controller.",
+        "description": (
+            "Disconnect and remove the virtual Xbox 360 controller. "
+            "Call this when done with gamepad operations to clean up the virtual device."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
 
     # ADB (4)
     {
         "name": "adb_tap",
-        "description": "Tap at x,y on the Android emulator screen.",
+        "description": (
+            "Tap at x,y coordinates on an Android emulator screen via ADB. "
+            "Coordinates are in the emulator's own resolution (not the host screen). "
+            "Use adb_shell with 'dumpsys window' to get the emulator's display dimensions."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x": {"type": "integer"},
-                "y": {"type": "integer"},
-                "device": {"type": "string", "description": "ADB device serial (e.g., emulator-5554)"},
+                "x": {"type": "integer", "description": "X coordinate in emulator pixels"},
+                "y": {"type": "integer", "description": "Y coordinate in emulator pixels"},
+                "device": {"type": "string", "description": "ADB device serial (e.g., 'emulator-5554'). Omit if only one device is connected."},
             },
             "required": ["x", "y"],
         },
     },
     {
         "name": "adb_swipe",
-        "description": "Swipe from (x1,y1) to (x2,y2) on the emulator.",
+        "description": (
+            "Swipe from one point to another on an Android emulator screen. "
+            "Useful for scrolling, unlocking, and navigating. Coordinates are in emulator pixels. "
+            "Increase duration_ms for slower, more precise swipes."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "x1": {"type": "integer"},
-                "y1": {"type": "integer"},
-                "x2": {"type": "integer"},
-                "y2": {"type": "integer"},
-                "duration_ms": {"type": "integer", "default": 300},
-                "device": {"type": "string"},
+                "x1": {"type": "integer", "description": "Starting X coordinate"},
+                "y1": {"type": "integer", "description": "Starting Y coordinate"},
+                "x2": {"type": "integer", "description": "Ending X coordinate"},
+                "y2": {"type": "integer", "description": "Ending Y coordinate"},
+                "duration_ms": {"type": "integer", "default": 300, "description": "Swipe duration in milliseconds. Increase for slower swipes."},
+                "device": {"type": "string", "description": "ADB device serial. Omit if only one device is connected."},
             },
             "required": ["x1", "y1", "x2", "y2"],
         },
     },
     {
         "name": "adb_key_event",
-        "description": "Send an Android key event (e.g., 3=HOME, 4=BACK, 24=VOLUME_UP).",
+        "description": (
+            "Send an Android key event to the emulator. Common keycodes: "
+            "3=HOME, 4=BACK, 24=VOLUME_UP, 25=VOLUME_DOWN, 26=POWER, "
+            "82=MENU, 187=APP_SWITCH. Full list at Android KeyEvent documentation."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "keycode": {"type": "integer"},
-                "device": {"type": "string"},
+                "keycode": {"type": "integer", "description": "Android keycode integer (e.g., 3=HOME, 4=BACK, 24=VOLUME_UP)"},
+                "device": {"type": "string", "description": "ADB device serial. Omit if only one device is connected."},
             },
             "required": ["keycode"],
         },
     },
     {
         "name": "adb_shell",
-        "description": "Run an allowlisted ADB shell command on the emulator.",
+        "description": (
+            "Run an allowlisted ADB shell command on the Android emulator. Only commands in the "
+            "security config allowlist are permitted (default: input tap/swipe/keyevent, screencap, dumpsys window). "
+            "Commands not in the allowlist will be rejected."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "command": {"type": "string"},
-                "device": {"type": "string"},
+                "command": {"type": "string", "description": "Shell command to execute (must be in the config allowlist)"},
+                "device": {"type": "string", "description": "ADB device serial. Omit if only one device is connected."},
             },
             "required": ["command"],
         },
@@ -284,58 +383,133 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     # System (4)
     {
         "name": "launch_app",
-        "description": "Launch an application (must be in the config allowlist).",
+        "description": (
+            "Launch an application by executable name or full path. The application must be in the "
+            "security config allowlist (security.apps.allowed). After launching, use wait_for_window "
+            "to confirm the application window has appeared before interacting with it."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "app": {"type": "string", "description": "Application name or full path"},
+                "app": {"type": "string", "description": "Application executable name (e.g., 'notepad.exe') or full path"},
             },
             "required": ["app"],
         },
     },
     {
         "name": "focus_window",
-        "description": "Bring a window to the foreground by title.",
+        "description": (
+            "Bring a window to the foreground by title substring or process name. Provide at least one of "
+            "title or process. If title matching fails (e.g., due to special characters), try process name "
+            "instead — use list_windows to find process names. On failure, returns a list of available "
+            "windows to help identify the correct target. Blocked apps cannot be focused."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title": {"type": "string", "description": "Window title or substring to match"},
+                "title": {"type": "string", "description": "Window title or substring to match (case-insensitive, Unicode-safe)"},
+                "process": {"type": "string", "description": "Process name to match (e.g., 'msedge.exe', 'notepad.exe'). Reliable fallback when title matching fails."},
             },
-            "required": ["title"],
         },
     },
     {
         "name": "close_window",
-        "description": "Close a window gracefully by title (sends WM_CLOSE).",
+        "description": (
+            "Close a window gracefully by sending WM_CLOSE (equivalent to clicking the X button). "
+            "Provide at least one of title or process. The application may prompt to save unsaved work. "
+            "Blocked apps cannot be closed. Use list_windows to find exact window titles."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title": {"type": "string"},
+                "title": {"type": "string", "description": "Window title or substring to match (case-insensitive, Unicode-safe)"},
+                "process": {"type": "string", "description": "Process name to match (e.g., 'notepad.exe'). Reliable fallback when title matching fails."},
             },
-            "required": ["title"],
         },
     },
     {
         "name": "get_system_info",
-        "description": "Get CPU, memory, disk usage, and battery info (sanitized, no usernames).",
+        "description": (
+            "Get CPU usage, memory usage, disk usage, and battery status. "
+            "All values are sanitized — no usernames, hostnames, or file paths are included. "
+            "Useful for monitoring system health before resource-intensive operations."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
 
     # Clipboard (2)
     {
         "name": "clipboard_read",
-        "description": "Read the current clipboard text content.",
+        "description": (
+            "Read the current text content from the Windows clipboard. "
+            "Disabled by default in security config — enable clipboard.read_enabled to use. "
+            "Returns the clipboard text or an error if empty or not text content."
+        ),
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "clipboard_write",
-        "description": "Write text to the clipboard.",
+        "description": (
+            "Write text to the Windows clipboard. Useful for transferring large text blocks — "
+            "write to clipboard then use keyboard_hotkey('ctrl+v') to paste, which is faster "
+            "and more reliable than keyboard_type for long text."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "text": {"type": "string"},
+                "text": {"type": "string", "description": "Text to write to the clipboard"},
             },
             "required": ["text"],
+        },
+    },
+
+    # Compound (3)
+    {
+        "name": "click_text",
+        "description": (
+            "Find text on screen using OCR and click its center — combines screenshot, OCR, coordinate "
+            "calculation, and mouse click into one step. PREFER THIS over manual screenshot+OCR+click workflows. "
+            "On failure, returns visible text sample to help identify correct text. Use 'occurrence' to "
+            "click the Nth match when text appears multiple times. Specify 'region' to limit search area."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "The text to find and click on screen (case-insensitive, partial match)"},
+                "button": {"type": "string", "enum": ["left", "right", "middle"], "default": "left"},
+                "clicks": {"type": "integer", "default": 1, "description": "Number of clicks (1=single, 2=double)"},
+                "monitor": {"type": "integer", "default": 0, "description": "Monitor index (0=all, 1=primary)"},
+                "region": {
+                    "type": "object",
+                    "properties": {
+                        "left": {"type": "integer"},
+                        "top": {"type": "integer"},
+                        "width": {"type": "integer"},
+                        "height": {"type": "integer"},
+                    },
+                    "description": "Limit OCR search to this screen region for faster and more precise results",
+                },
+                "occurrence": {"type": "integer", "default": 1, "description": "Which occurrence to click if text appears multiple times (1=first, 2=second, etc.)"},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "wait_for_window",
+        "description": (
+            "Wait for a window to appear by title or process name, polling at intervals. "
+            "ALWAYS use this after launch_app to confirm the application window is ready before "
+            "interacting with it. Returns the matched window's title and process name on success. "
+            "Timeout is capped at 30 seconds. Provide at least one of title or process."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Window title substring to wait for (case-insensitive, Unicode-safe)"},
+                "process": {"type": "string", "description": "Process name to wait for (e.g., 'notepad.exe')"},
+                "timeout": {"type": "number", "default": 10, "description": "Maximum seconds to wait (capped at 30)"},
+                "poll_interval": {"type": "number", "default": 0.5, "description": "Seconds between polling checks"},
+            },
         },
     },
 ]
@@ -352,6 +526,7 @@ def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) ->
             monitor=params.get("monitor", 0),
             region=params.get("region"),
             blocked_apps=blocked_apps,
+            window_title=params.get("window_title"),
         ),
         "ocr_extract_text": lambda: screen.ocr_extract_text(
             region=params.get("region"),
@@ -417,12 +592,36 @@ def _dispatch_tool(tool_name: str, params: dict[str, Any], config: AppConfig) ->
         ),
 
         "launch_app": lambda: system.launch_app(app=params["app"]),
-        "focus_window": lambda: system.focus_window(title=params["title"]),
-        "close_window": lambda: system.close_window(title=params["title"]),
+        "focus_window": lambda: system.focus_window(
+            title=params.get("title"),
+            process=params.get("process"),
+            blocked_apps=blocked_apps,
+        ),
+        "close_window": lambda: system.close_window(
+            title=params.get("title"),
+            process=params.get("process"),
+            blocked_apps=blocked_apps,
+        ),
         "get_system_info": lambda: system.get_system_info(),
 
         "clipboard_read": lambda: clipboard.clipboard_read(),
         "clipboard_write": lambda: clipboard.clipboard_write(text=params["text"]),
+
+        "get_screen_info": lambda: screen.get_screen_info(),
+        "click_text": lambda: compound.click_text(
+            text=params["text"],
+            button=params.get("button", "left"),
+            clicks=params.get("clicks", 1),
+            monitor=params.get("monitor", 0),
+            region=params.get("region"),
+            occurrence=params.get("occurrence", 1),
+        ),
+        "wait_for_window": lambda: compound.wait_for_window(
+            title=params.get("title"),
+            process=params.get("process"),
+            timeout=params.get("timeout", 10.0),
+            poll_interval=params.get("poll_interval", 0.5),
+        ),
     }
 
     handler = handlers.get(tool_name)
@@ -484,10 +683,16 @@ def create_server() -> Server:
 
         # Handle screenshot results — return as image
         if name == "capture_screenshot" and result.get("success") and "image_base64" in result:
-            middleware.post_log(name, arguments, {"success": True, "size": f"{result['width']}x{result['height']}"})
+            meta = {
+                "width": result["width"],
+                "height": result["height"],
+                "dpi_scale": result.get("dpi_scale", 1.0),
+                "active_window": result.get("active_window", ""),
+            }
+            middleware.post_log(name, arguments, {"success": True, "size": f"{meta['width']}x{meta['height']}"})
             return [
                 ImageContent(type="image", data=result["image_base64"], mimeType="image/png"),
-                TextContent(type="text", text=json.dumps({"width": result["width"], "height": result["height"]})),
+                TextContent(type="text", text=json.dumps(meta)),
             ]
 
         middleware.post_log(name, arguments, result)

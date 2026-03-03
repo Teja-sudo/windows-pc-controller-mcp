@@ -52,9 +52,9 @@ def _make_config(**overrides):
 # ===========================================================================
 
 class TestToolDefinitions:
-    def test_tool_count_is_26(self):
+    def test_tool_count_is_29(self):
         from src.server import TOOL_DEFINITIONS
-        assert len(TOOL_DEFINITIONS) == 26
+        assert len(TOOL_DEFINITIONS) == 29
 
     def test_all_definitions_have_required_keys(self):
         from src.server import TOOL_DEFINITIONS
@@ -69,13 +69,13 @@ class TestToolDefinitions:
         assert len(names) == len(set(names)), f"Duplicate tool names: {names}"
 
     def test_expected_tool_names_present(self):
-        """Verify all 26 expected tool names are registered."""
+        """Verify all 29 expected tool names are registered."""
         from src.server import TOOL_DEFINITIONS
 
         expected = {
-            # Screen (5)
+            # Screen (6)
             "capture_screenshot", "ocr_extract_text", "find_on_screen",
-            "get_pixel_color", "list_windows",
+            "get_pixel_color", "list_windows", "get_screen_info",
             # Mouse (5)
             "mouse_move", "mouse_click", "mouse_drag",
             "mouse_scroll", "mouse_position",
@@ -89,15 +89,29 @@ class TestToolDefinitions:
             "launch_app", "focus_window", "close_window", "get_system_info",
             # Clipboard (2)
             "clipboard_read", "clipboard_write",
+            # Compound (3)
+            "click_text", "wait_for_window",
         }
         actual = {t["name"] for t in TOOL_DEFINITIONS}
-        assert actual == expected
+        missing = expected - actual
+        extra = actual - expected
+        assert not missing, f"Missing tools: {missing}"
+        assert not extra, f"Extra tools: {extra}"
 
     def test_input_schemas_are_objects(self):
         from src.server import TOOL_DEFINITIONS
         for defn in TOOL_DEFINITIONS:
             schema = defn["inputSchema"]
             assert schema.get("type") == "object", f"{defn['name']} schema type must be 'object'"
+
+    def test_descriptions_have_minimum_length(self):
+        """All tool descriptions should be detailed enough for AI agent use (50+ chars)."""
+        from src.server import TOOL_DEFINITIONS
+        for defn in TOOL_DEFINITIONS:
+            desc = defn["description"]
+            assert len(desc) >= 50, (
+                f"Tool '{defn['name']}' description too short ({len(desc)} chars): {desc!r}"
+            )
 
 
 # ===========================================================================
@@ -218,7 +232,7 @@ class TestDispatchTool:
         mock_fn.return_value = {"success": True, "image_base64": "abc", "width": 1920, "height": 1080}
         config = _make_config()
         result = _dispatch_tool("capture_screenshot", {"monitor": 1}, config)
-        mock_fn.assert_called_once_with(monitor=1, region=None, blocked_apps=[])
+        mock_fn.assert_called_once_with(monitor=1, region=None, blocked_apps=[], window_title=None)
 
     @patch("src.tools.screen.get_pixel_color")
     def test_dispatches_get_pixel_color(self, mock_fn):
@@ -323,7 +337,7 @@ class TestDispatchTool:
         mock_fn.return_value = {"success": True}
         config = _make_config()
         _dispatch_tool("focus_window", {"title": "Notepad"}, config)
-        mock_fn.assert_called_once_with(title="Notepad")
+        mock_fn.assert_called_once_with(title="Notepad", process=None, blocked_apps=[])
 
     @patch("src.tools.system.close_window")
     def test_dispatches_close_window(self, mock_fn):
@@ -332,7 +346,7 @@ class TestDispatchTool:
         mock_fn.return_value = {"success": True}
         config = _make_config()
         _dispatch_tool("close_window", {"title": "Notepad"}, config)
-        mock_fn.assert_called_once_with(title="Notepad")
+        mock_fn.assert_called_once_with(title="Notepad", process=None, blocked_apps=[])
 
     @patch("src.tools.system.get_system_info")
     def test_dispatches_get_system_info(self, mock_fn):

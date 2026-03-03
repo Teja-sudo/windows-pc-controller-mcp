@@ -101,3 +101,9 @@ tools:
     enabled: false
   clipboard_write:
     enabled: true
+  get_screen_info:
+    enabled: true
+  click_text:
+    enabled: true
+  wait_for_window:
+    enabled: true

@@ -57,7 +57,7 @@ def keyboard_type(
                 time.sleep(speed)
         return {"success": True, "characters_typed": len(text)}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "Ensure the target window is focused before typing. Use focus_window first."}
 
 
 def keyboard_hotkey(keys: str) -> dict[str, Any]:
@@ -77,9 +77,9 @@ def keyboard_hotkey(keys: str) -> dict[str, Any]:
 
         return {"success": True, "keys": keys}
     except ValueError as e:
-        return {"success": False, "error": str(e), "suggestion": "Check key names are valid"}
+        return {"success": False, "error": str(e), "suggestion": "Check key names are valid. Supported modifiers: ctrl, alt, shift, win. Example: 'ctrl+c'"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "Ensure the target window is focused. Some hotkeys may be blocked by security config."}
 
 
 def keyboard_press(key: str, action: str = "press") -> dict[str, Any]:
@@ -97,4 +97,4 @@ def keyboard_press(key: str, action: str = "press") -> dict[str, Any]:
             return {"success": False, "error": f"Invalid action: {action}. Use press, release, or tap"}
         return {"success": True, "key": key, "action": action}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "Check key name is valid. Supported: a-z, 0-9, enter, tab, escape, space, f1-f12, up/down/left/right"}

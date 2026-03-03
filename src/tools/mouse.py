@@ -22,7 +22,7 @@ def mouse_position() -> dict[str, Any]:
         x, y = _mouse.position
         return {"success": True, "x": int(x), "y": int(y)}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "This tool requires a display session"}
 
 
 def mouse_move(x: int, y: int, relative: bool = False) -> dict[str, Any]:
@@ -55,7 +55,7 @@ def mouse_click(
         _mouse.click(btn, clicks)
         return {"success": True, "button": button, "clicks": clicks}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "Check coordinates are within screen bounds. Use get_screen_info to verify screen dimensions."}
 
 
 def mouse_drag(
@@ -82,7 +82,7 @@ def mouse_drag(
         _mouse.release(btn)
         return {"success": True, "start": [start_x, start_y], "end": [end_x, end_y]}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "Check that start and end coordinates are within screen bounds"}
 
 
 def mouse_scroll(dx: int = 0, dy: int = 0) -> dict[str, Any]:
@@ -91,4 +91,4 @@ def mouse_scroll(dx: int = 0, dy: int = 0) -> dict[str, Any]:
         _mouse.scroll(dx, dy)
         return {"success": True, "dx": dx, "dy": dy}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "suggestion": "Move mouse to the target area first with mouse_move before scrolling"}
