@@ -24,75 +24,75 @@ All of this is locked down by default. Every tool call passes through a security
 
 ### Screen Capture & Vision (5 tools)
 
-| Tool | Description |
-|------|-------------|
+| Tool                 | Description                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------ |
 | `capture_screenshot` | Take a screenshot of the full screen, a specific monitor, or a region. Returns base64 PNG. |
-| `ocr_extract_text` | Extract text from the screen or a region using EasyOCR. |
-| `find_on_screen` | Find where a template image appears on screen using OpenCV template matching. |
-| `get_pixel_color` | Get the RGB hex color of a pixel at screen coordinates. |
-| `list_windows` | List all visible windows with titles, process names, and positions. |
+| `ocr_extract_text`   | Extract text from the screen or a region using EasyOCR.                                    |
+| `find_on_screen`     | Find where a template image appears on screen using OpenCV template matching.              |
+| `get_pixel_color`    | Get the RGB hex color of a pixel at screen coordinates.                                    |
+| `list_windows`       | List all visible windows with titles, process names, and positions.                        |
 
 ### Mouse Control (5 tools)
 
-| Tool | Description |
-|------|-------------|
-| `mouse_move` | Move the cursor to absolute or relative coordinates. |
-| `mouse_click` | Click at coordinates or current position. Supports left/right/middle, single/double/triple click. |
-| `mouse_drag` | Click and drag from start to end coordinates with configurable duration. |
-| `mouse_scroll` | Scroll the mouse wheel horizontally or vertically. |
-| `mouse_position` | Get the current cursor position. |
+| Tool             | Description                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `mouse_move`     | Move the cursor to absolute or relative coordinates.                                              |
+| `mouse_click`    | Click at coordinates or current position. Supports left/right/middle, single/double/triple click. |
+| `mouse_drag`     | Click and drag from start to end coordinates with configurable duration.                          |
+| `mouse_scroll`   | Scroll the mouse wheel horizontally or vertically.                                                |
+| `mouse_position` | Get the current cursor position.                                                                  |
 
 ### Keyboard Control (3 tools)
 
-| Tool | Description |
-|------|-------------|
-| `keyboard_type` | Type a string of text character by character with configurable speed. |
-| `keyboard_hotkey` | Press a key combination like `ctrl+c`, `alt+tab`, or `ctrl+shift+s`. |
-| `keyboard_press` | Press, release, or tap a single key (including special keys like F1-F12, arrows, etc.). |
+| Tool              | Description                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| `keyboard_type`   | Type a string of text character by character with configurable speed.                   |
+| `keyboard_hotkey` | Press a key combination like `ctrl+c`, `alt+tab`, or `ctrl+shift+s`.                    |
+| `keyboard_press`  | Press, release, or tap a single key (including special keys like F1-F12, arrows, etc.). |
 
 ### Virtual Gamepad (3 tools)
 
-| Tool | Description |
-|------|-------------|
-| `gamepad_connect` | Create a virtual Xbox 360 controller (requires ViGEmBus driver). |
-| `gamepad_input` | Set buttons (A/B/X/Y/LB/RB/D-pad/etc.), analog sticks (-1.0 to 1.0), and triggers (0.0 to 1.0). |
-| `gamepad_disconnect` | Disconnect the virtual controller. |
+| Tool                 | Description                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `gamepad_connect`    | Create a virtual Xbox 360 controller (requires ViGEmBus driver).                                |
+| `gamepad_input`      | Set buttons (A/B/X/Y/LB/RB/D-pad/etc.), analog sticks (-1.0 to 1.0), and triggers (0.0 to 1.0). |
+| `gamepad_disconnect` | Disconnect the virtual controller.                                                              |
 
 ### Android Emulator / ADB (4 tools)
 
-| Tool | Description |
-|------|-------------|
-| `adb_tap` | Tap at x,y on the emulator screen. |
-| `adb_swipe` | Swipe from one point to another with configurable duration. |
+| Tool            | Description                                                     |
+| --------------- | --------------------------------------------------------------- |
+| `adb_tap`       | Tap at x,y on the emulator screen.                              |
+| `adb_swipe`     | Swipe from one point to another with configurable duration.     |
 | `adb_key_event` | Send an Android key event (e.g., 3=HOME, 4=BACK, 24=VOLUME_UP). |
-| `adb_shell` | Run an allowlisted ADB shell command on the emulator. |
+| `adb_shell`     | Run an allowlisted ADB shell command on the emulator.           |
 
 ### System Management (4 tools)
 
-| Tool | Description |
-|------|-------------|
-| `launch_app` | Launch an application by name or path (must be in config allowlist). |
-| `focus_window` | Bring a window to the foreground by title substring. |
-| `close_window` | Close a window gracefully by title (sends WM_CLOSE). |
+| Tool              | Description                                                                  |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `launch_app`      | Launch an application by name or path (must be in config allowlist).         |
+| `focus_window`    | Bring a window to the foreground by title substring.                         |
+| `close_window`    | Close a window gracefully by title (sends WM_CLOSE).                         |
 | `get_system_info` | Get CPU, memory, disk, and battery info (sanitized — no usernames or paths). |
 
 ### Clipboard (2 tools)
 
-| Tool | Description |
-|------|-------------|
-| `clipboard_read` | Read the current clipboard text content. **Disabled by default.** |
-| `clipboard_write` | Write text to the clipboard. |
+| Tool              | Description                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| `clipboard_read`  | Read the current clipboard text content. **Disabled by default.** |
+| `clipboard_write` | Write text to the clipboard.                                      |
 
 ---
 
 ## Prerequisites
 
-| Requirement | Notes |
-|---|---|
-| **Windows 10 or 11** | Required — uses Win32 APIs for window management and input |
-| **Python 3.11+** | Tested with Python 3.12 |
-| **ViGEmBus driver** | *Optional* — only needed for virtual gamepad. [Download here](https://github.com/nefarius/ViGEmBus/releases) |
-| **ADB** | *Optional* — only needed for Android emulator control. Bundled with BlueStacks at `C:\Program Files\BlueStacks_nxt\HD-Adb.exe`, or install via [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) |
+| Requirement          | Notes                                                                                                                                                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Windows 10 or 11** | Required — uses Win32 APIs for window management and input                                                                                                                                                                               |
+| **Python 3.11+**     | Tested with Python 3.12                                                                                                                                                                                                                  |
+| **ViGEmBus driver**  | _Optional_ — only needed for virtual gamepad. [Download here](https://github.com/nefarius/ViGEmBus/releases)                                                                                                                             |
+| **ADB**              | _Optional_ — only needed for Android emulator control. Bundled with BlueStacks at `C:\Program Files\BlueStacks_nxt\HD-Adb.exe`, or install via [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) |
 
 ---
 
@@ -100,7 +100,7 @@ All of this is locked down by default. Every tool call passes through a security
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/windows-pc-controller-mcp.git
+git clone https://github.com/Teja-sudo/windows-pc-controller-mcp.git
 cd windows-pc-controller-mcp
 
 # Install the package
@@ -172,14 +172,14 @@ You should see `windows-pc-controller` with 26 tools available.
 
 Once connected (via either Claude Desktop or Claude Code), you can ask Claude things like:
 
-- *"Take a screenshot and tell me what's on screen"*
-- *"Move the mouse to the Start button and click it"*
-- *"Open Notepad and type 'Hello World'"*
-- *"Connect a gamepad and press the A button"*
-- *"Tap at 500,300 on my BlueStacks emulator"*
-- *"What's the current CPU and memory usage?"*
-- *"Find the 'Submit' button on screen and click it"*
-- *"Read what's in my clipboard"*
+- _"Take a screenshot and tell me what's on screen"_
+- _"Move the mouse to the Start button and click it"_
+- _"Open Notepad and type 'Hello World'"_
+- _"Connect a gamepad and press the A button"_
+- _"Tap at 500,300 on my BlueStacks emulator"_
+- _"What's the current CPU and memory usage?"_
+- _"Find the 'Submit' button on screen and click it"_
+- _"Read what's in my clipboard"_
 
 ---
 
@@ -204,18 +204,18 @@ Below is every configurable option, organized by section. The YAML path shows ex
 
 ```yaml
 security:
-  enabled: true                        # Master kill switch — disables ALL security checks
-  confirm_dangerous_actions: true      # Show native popup for dangerous tools
-  confirmation_timeout_seconds: 60     # Auto-deny if no response (in seconds)
-  audit_logging: true                  # Log every tool call to logs/audit.log
+  enabled: true # Master kill switch — disables ALL security checks
+  confirm_dangerous_actions: true # Show native popup for dangerous tools
+  confirmation_timeout_seconds: 60 # Auto-deny if no response (in seconds)
+  audit_logging: true # Log every tool call to logs/audit.log
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `security.enabled` | `bool` | `true` | Master switch for all security checks. When `false`, all tools are allowed without any permission, rate limit, or confirmation checks. |
-| `security.confirm_dangerous_actions` | `bool` | `true` | Whether dangerous tools trigger a native Windows confirmation popup. |
-| `security.confirmation_timeout_seconds` | `int` | `60` | Seconds before the confirmation popup auto-denies. The countdown is shown live on the popup. |
-| `security.audit_logging` | `bool` | `true` | Whether all tool calls (allowed and denied) are logged to `logs/audit.log` in JSON-lines format. |
+| Key                                     | Type   | Default | Description                                                                                                                            |
+| --------------------------------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `security.enabled`                      | `bool` | `true`  | Master switch for all security checks. When `false`, all tools are allowed without any permission, rate limit, or confirmation checks. |
+| `security.confirm_dangerous_actions`    | `bool` | `true`  | Whether dangerous tools trigger a native Windows confirmation popup.                                                                   |
+| `security.confirmation_timeout_seconds` | `int`  | `60`    | Seconds before the confirmation popup auto-denies. The countdown is shown live on the popup.                                           |
+| `security.audit_logging`                | `bool` | `true`  | Whether all tool calls (allowed and denied) are logged to `logs/audit.log` in JSON-lines format.                                       |
 
 #### Content Masking
 
@@ -224,24 +224,24 @@ Controls what sensitive content is hidden from Claude.
 ```yaml
 security:
   masking:
-    enabled: true                      # Toggle all masking on/off
-    mask_password_fields: true         # Redact password input fields
-    blocked_apps:                      # Apps hidden from window listing & screenshots
+    enabled: true # Toggle all masking on/off
+    mask_password_fields: true # Redact password input fields
+    blocked_apps: # Apps hidden from window listing & screenshots
       - "1Password"
       - "KeePass"
       - "LastPass"
       - "Bitwarden"
       - "Windows Security"
       - "Credential Manager"
-    blocked_regions: []                # Screen regions to block [{left, top, width, height}]
+    blocked_regions: [] # Screen regions to block [{left, top, width, height}]
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `security.masking.enabled` | `bool` | `true` | Master toggle for all content masking. |
-| `security.masking.mask_password_fields` | `bool` | `true` | Whether to redact password input fields from OCR/screenshots. |
-| `security.masking.blocked_apps` | `list[str]` | 6 password managers | App names (matched against window title and process name, case-insensitive) to hide from `list_windows` and filter from screenshots. |
-| `security.masking.blocked_regions` | `list[{left, top, width, height}]` | `[]` | Specific screen rectangles to always mask. Useful for blocking a taskbar notification area, etc. |
+| Key                                     | Type                               | Default             | Description                                                                                                                          |
+| --------------------------------------- | ---------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `security.masking.enabled`              | `bool`                             | `true`              | Master toggle for all content masking.                                                                                               |
+| `security.masking.mask_password_fields` | `bool`                             | `true`              | Whether to redact password input fields from OCR/screenshots.                                                                        |
+| `security.masking.blocked_apps`         | `list[str]`                        | 6 password managers | App names (matched against window title and process name, case-insensitive) to hide from `list_windows` and filter from screenshots. |
+| `security.masking.blocked_regions`      | `list[{left, top, width, height}]` | `[]`                | Specific screen rectangles to always mask. Useful for blocking a taskbar notification area, etc.                                     |
 
 #### Rate Limits
 
@@ -250,20 +250,20 @@ Per-category limits on how many tool calls are allowed per minute. Uses a slidin
 ```yaml
 security:
   rate_limits:
-    mouse: 60          # mouse_move, mouse_click, mouse_drag, mouse_scroll, mouse_position
-    keyboard: 120      # keyboard_type, keyboard_hotkey, keyboard_press
-    screenshot: 10     # capture_screenshot, ocr_extract_text, find_on_screen, get_pixel_color, list_windows
-    adb: 30            # adb_tap, adb_swipe, adb_key_event, adb_shell
-    gamepad: 120       # gamepad_connect, gamepad_input, gamepad_disconnect
+    mouse: 60 # mouse_move, mouse_click, mouse_drag, mouse_scroll, mouse_position
+    keyboard: 120 # keyboard_type, keyboard_hotkey, keyboard_press
+    screenshot: 10 # capture_screenshot, ocr_extract_text, find_on_screen, get_pixel_color, list_windows
+    adb: 30 # adb_tap, adb_swipe, adb_key_event, adb_shell
+    gamepad: 120 # gamepad_connect, gamepad_input, gamepad_disconnect
 ```
 
-| Key | Type | Default | Tools in category |
-|-----|------|---------|-------------------|
-| `security.rate_limits.mouse` | `int` | `60` | `mouse_move`, `mouse_click`, `mouse_drag`, `mouse_scroll`, `mouse_position` |
-| `security.rate_limits.keyboard` | `int` | `120` | `keyboard_type`, `keyboard_hotkey`, `keyboard_press` |
-| `security.rate_limits.screenshot` | `int` | `10` | `capture_screenshot`, `ocr_extract_text`, `find_on_screen`, `get_pixel_color`, `list_windows` |
-| `security.rate_limits.adb` | `int` | `30` | `adb_tap`, `adb_swipe`, `adb_key_event`, `adb_shell` |
-| `security.rate_limits.gamepad` | `int` | `120` | `gamepad_connect`, `gamepad_input`, `gamepad_disconnect` |
+| Key                               | Type  | Default | Tools in category                                                                             |
+| --------------------------------- | ----- | ------- | --------------------------------------------------------------------------------------------- |
+| `security.rate_limits.mouse`      | `int` | `60`    | `mouse_move`, `mouse_click`, `mouse_drag`, `mouse_scroll`, `mouse_position`                   |
+| `security.rate_limits.keyboard`   | `int` | `120`   | `keyboard_type`, `keyboard_hotkey`, `keyboard_press`                                          |
+| `security.rate_limits.screenshot` | `int` | `10`    | `capture_screenshot`, `ocr_extract_text`, `find_on_screen`, `get_pixel_color`, `list_windows` |
+| `security.rate_limits.adb`        | `int` | `30`    | `adb_tap`, `adb_swipe`, `adb_key_event`, `adb_shell`                                          |
+| `security.rate_limits.gamepad`    | `int` | `120`   | `gamepad_connect`, `gamepad_input`, `gamepad_disconnect`                                      |
 
 System tools (`launch_app`, `focus_window`, `close_window`, `get_system_info`) and clipboard tools (`clipboard_read`, `clipboard_write`) are not rate-limited by default.
 
@@ -272,41 +272,41 @@ System tools (`launch_app`, `focus_window`, `close_window`, `get_system_info`) a
 ```yaml
 security:
   keyboard:
-    blocked_hotkeys:                   # Hotkey combos that are always denied
+    blocked_hotkeys: # Hotkey combos that are always denied
       - "ctrl+alt+delete"
       - "win+l"
       - "alt+f4"
-    max_type_length: 500               # Max characters per keyboard_type call
-    block_password_fields: true        # Prevent typing into password fields
+    max_type_length: 500 # Max characters per keyboard_type call
+    block_password_fields: true # Prevent typing into password fields
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `security.keyboard.blocked_hotkeys` | `list[str]` | `["ctrl+alt+delete", "win+l", "alt+f4"]` | Hotkey combinations that are always denied, regardless of other permissions. Matched case-insensitively. |
-| `security.keyboard.max_type_length` | `int` | `500` | Maximum number of characters allowed in a single `keyboard_type` call. Prevents Claude from pasting massive strings. |
-| `security.keyboard.block_password_fields` | `bool` | `true` | Whether to prevent typing into detected password input fields. |
+| Key                                       | Type        | Default                                  | Description                                                                                                          |
+| ----------------------------------------- | ----------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `security.keyboard.blocked_hotkeys`       | `list[str]` | `["ctrl+alt+delete", "win+l", "alt+f4"]` | Hotkey combinations that are always denied, regardless of other permissions. Matched case-insensitively.             |
+| `security.keyboard.max_type_length`       | `int`       | `500`                                    | Maximum number of characters allowed in a single `keyboard_type` call. Prevents Claude from pasting massive strings. |
+| `security.keyboard.block_password_fields` | `bool`      | `true`                                   | Whether to prevent typing into detected password input fields.                                                       |
 
 #### App Launch Control
 
 ```yaml
 security:
   apps:
-    mode: "allowlist"                  # "allowlist" or "blocklist"
-    allowed: []                        # Apps permitted to launch (empty = none)
+    mode: "allowlist" # "allowlist" or "blocklist"
+    allowed: [] # Apps permitted to launch (empty = none)
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `security.apps.mode` | `"allowlist"` or `"blocklist"` | `"allowlist"` | In **allowlist** mode, only apps in `allowed` can be launched. In **blocklist** mode, all apps can be launched *except* those listed. Allowlist is safer. |
-| `security.apps.allowed` | `list[str]` | `[]` (empty) | App names or full paths. In allowlist mode, only these can be launched. In blocklist mode, these are blocked. **Empty allowlist = no app can be launched.** |
+| Key                     | Type                           | Default       | Description                                                                                                                                                 |
+| ----------------------- | ------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `security.apps.mode`    | `"allowlist"` or `"blocklist"` | `"allowlist"` | In **allowlist** mode, only apps in `allowed` can be launched. In **blocklist** mode, all apps can be launched _except_ those listed. Allowlist is safer.   |
+| `security.apps.allowed` | `list[str]`                    | `[]` (empty)  | App names or full paths. In allowlist mode, only these can be launched. In blocklist mode, these are blocked. **Empty allowlist = no app can be launched.** |
 
 #### ADB (Android Emulator) Security
 
 ```yaml
 security:
   adb:
-    allowed_devices: []                # Restrict to specific ADB device serials
-    allowed_commands:                   # Command prefixes that are permitted
+    allowed_devices: [] # Restrict to specific ADB device serials
+    allowed_commands: # Command prefixes that are permitted
       - "input tap"
       - "input swipe"
       - "input keyevent"
@@ -314,24 +314,24 @@ security:
       - "dumpsys window"
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `security.adb.allowed_devices` | `list[str]` | `[]` (any device) | If non-empty, only these ADB device serials (e.g., `"emulator-5554"`) can be targeted. Empty means any connected device is allowed. |
-| `security.adb.allowed_commands` | `list[str]` | 5 safe commands | Command **prefixes** that are allowed for `adb_shell`. A command is allowed if it starts with any entry in this list. |
+| Key                             | Type        | Default           | Description                                                                                                                         |
+| ------------------------------- | ----------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `security.adb.allowed_devices`  | `list[str]` | `[]` (any device) | If non-empty, only these ADB device serials (e.g., `"emulator-5554"`) can be targeted. Empty means any connected device is allowed. |
+| `security.adb.allowed_commands` | `list[str]` | 5 safe commands   | Command **prefixes** that are allowed for `adb_shell`. A command is allowed if it starts with any entry in this list.               |
 
 #### Clipboard Security
 
 ```yaml
 security:
   clipboard:
-    read_enabled: false                # Reading clipboard is OFF by default
-    write_enabled: true                # Writing to clipboard is allowed
+    read_enabled: false # Reading clipboard is OFF by default
+    write_enabled: true # Writing to clipboard is allowed
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `security.clipboard.read_enabled` | `bool` | `false` | Whether Claude can read your clipboard contents. **Disabled by default** to prevent accidental exposure of passwords or sensitive data you've copied. |
-| `security.clipboard.write_enabled` | `bool` | `true` | Whether Claude can write text to your clipboard. |
+| Key                                | Type   | Default | Description                                                                                                                                           |
+| ---------------------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `security.clipboard.read_enabled`  | `bool` | `false` | Whether Claude can read your clipboard contents. **Disabled by default** to prevent accidental exposure of passwords or sensitive data you've copied. |
+| `security.clipboard.write_enabled` | `bool` | `true`  | Whether Claude can write text to your clipboard.                                                                                                      |
 
 #### Per-Tool Enable/Disable
 
@@ -401,7 +401,7 @@ tools:
 
   # Clipboard tools
   clipboard_read:
-    enabled: false       # Disabled by default
+    enabled: false # Disabled by default
   clipboard_write:
     enabled: true
 ```
@@ -538,6 +538,7 @@ Four tools are flagged as **dangerous** and trigger a native Windows popup befor
 - `keyboard_hotkey` — Could trigger system-level shortcuts
 
 When triggered, a popup appears with:
+
 - The tool name and all parameters being passed
 - **Allow** button (green) — proceed with the action
 - **Deny** button (red) — block the action
@@ -557,7 +558,13 @@ The popup is a native Windows dialog (CustomTkinter with dark theme) — it does
 Every tool call is logged to `logs/audit.log` in JSON-lines format:
 
 ```json
-{"timestamp": "2026-03-03T14:30:00", "tool": "mouse_click", "params": {"x": 500, "y": 300}, "allowed": true, "result_summary": "{\"success\": true, \"button\": \"left\"}"}
+{
+  "timestamp": "2026-03-03T14:30:00",
+  "tool": "mouse_click",
+  "params": { "x": 500, "y": 300 },
+  "allowed": true,
+  "result_summary": "{\"success\": true, \"button\": \"left\"}"
+}
 ```
 
 Denied actions are also logged with the denial reason.
@@ -630,20 +637,20 @@ src/server.py
 
 ### Key Dependencies
 
-| Library | Purpose |
-|---------|---------|
-| `mcp` | MCP protocol server framework |
-| `mss` | Fast multi-monitor screen capture |
-| `easyocr` | OCR text extraction |
-| `opencv-python` | Template matching for find-on-screen |
-| `Pillow` | Image processing and conversion |
-| `pynput` | Mouse and keyboard control |
-| `pywin32` | Windows API (window management, clipboard) |
-| `vgamepad` | Virtual Xbox 360 controller emulation |
-| `pyyaml` | YAML configuration parsing |
-| `pydantic` | Configuration validation with type safety |
-| `customtkinter` | Modern UI for confirmation popups |
-| `psutil` | System information (CPU, memory, disk, battery) |
+| Library         | Purpose                                         |
+| --------------- | ----------------------------------------------- |
+| `mcp`           | MCP protocol server framework                   |
+| `mss`           | Fast multi-monitor screen capture               |
+| `easyocr`       | OCR text extraction                             |
+| `opencv-python` | Template matching for find-on-screen            |
+| `Pillow`        | Image processing and conversion                 |
+| `pynput`        | Mouse and keyboard control                      |
+| `pywin32`       | Windows API (window management, clipboard)      |
+| `vgamepad`      | Virtual Xbox 360 controller emulation           |
+| `pyyaml`        | YAML configuration parsing                      |
+| `pydantic`      | Configuration validation with type safety       |
+| `customtkinter` | Modern UI for confirmation popups               |
+| `psutil`        | System information (CPU, memory, disk, battery) |
 
 ---
 

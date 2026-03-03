@@ -15,7 +15,7 @@ dependencies = [
     "opencv-python>=4.8.0",
     "pynput>=1.7.0",
     "pywin32>=306",
-    "vgamepad>=0.3.0",
+    "vgamepad>=0.1.0",
     "adb-shell>=0.4.0",
     "pyyaml>=6.0",
     "pydantic>=2.0.0",
@@ -30,6 +30,9 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-mock>=3.0.0",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [project.scripts]
 windows-pc-controller-mcp = "src.server:main"
