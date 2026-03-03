@@ -1,2 +1,571 @@
 <!DOCTYPE html>
-<html><body><h1>MCP Dashboard — Loading...</h1></body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Dashboard — Windows PC Controller</title>
+
+  <!-- Shoelace -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+  <!-- Tippy.js + Popper -->
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
+  <script src="https://unpkg.com/tippy.js@6"></script>
+  <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/themes/material.css" />
+
+  <style>
+    /* ── Custom Properties ─────────────────────────────────── */
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #3b82f6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --card-radius: 12px;
+      --card-padding: 1.25rem;
+      --header-height: 56px;
+      --button-bar-height: 64px;
+    }
+
+    /* ── Reset & Base ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Container ─────────────────────────────────────────── */
+    .container {
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    /* ── Header ────────────────────────────────────────────── */
+    .header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+    }
+
+    .header-title sl-icon {
+      font-size: 1.25rem;
+      color: var(--accent);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+
+    .status-dot.disconnected {
+      background: var(--danger);
+    }
+
+    .status-dot.loading {
+      background: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Main Content ──────────────────────────────────────── */
+    .main {
+      flex: 1;
+      padding-top: 1.5rem;
+      padding-bottom: calc(var(--button-bar-height) + 2rem);
+    }
+
+    /* ── Tabs ──────────────────────────────────────────────── */
+    sl-tab-group {
+      --indicator-color: var(--accent);
+      --track-color: var(--border);
+    }
+
+    sl-tab-group::part(base) {
+      background: transparent;
+    }
+
+    sl-tab-group::part(nav) {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+
+    sl-tab::part(base) {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+      font-weight: 500;
+      padding: 0.75rem 1rem;
+      transition: color 0.2s ease;
+    }
+
+    sl-tab::part(base):hover {
+      color: var(--text);
+    }
+
+    sl-tab[active]::part(base) {
+      color: var(--accent);
+    }
+
+    sl-tab-panel::part(base) {
+      padding: 0;
+    }
+
+    /* ── Card ──────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: var(--card-padding);
+      margin-bottom: 1rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    /* ── Button Bar ────────────────────────────────────────── */
+    .button-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--button-bar-height);
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 1.5rem;
+      z-index: 100;
+      gap: 0.75rem;
+    }
+
+    .button-bar .container {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* ── Restart Banner ────────────────────────────────────── */
+    .restart-banner {
+      display: none;
+      position: fixed;
+      bottom: var(--button-bar-height);
+      left: 0;
+      right: 0;
+      z-index: 99;
+    }
+
+    .restart-banner.visible {
+      display: block;
+    }
+
+    .restart-banner sl-alert {
+      border-radius: 0;
+    }
+
+    .restart-banner sl-alert::part(base) {
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+    }
+
+    /* ── Placeholder ───────────────────────────────────────── */
+    .tab-placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ── Utility ───────────────────────────────────────────── */
+    .text-muted { color: var(--text-muted); }
+    .text-accent { color: var(--accent); }
+    .text-success { color: var(--success); }
+    .text-danger { color: var(--danger); }
+
+    /* ── Loading Overlay ───────────────────────────────────── */
+    .loading-overlay {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1rem;
+    }
+
+    .loading-overlay sl-spinner {
+      font-size: 2rem;
+      --indicator-color: var(--accent);
+      --track-color: var(--border);
+    }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 1rem;
+      }
+
+      sl-tab::part(base) {
+        font-size: 0.8125rem;
+        padding: 0.625rem 0.625rem;
+      }
+
+      .card {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body class="sl-theme-dark">
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header class="header">
+    <div class="container">
+      <div class="header-title">
+        <sl-icon name="gear-wide-connected"></sl-icon>
+        MCP Dashboard
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot loading" id="statusDot"></span>
+        <span id="statusText">Loading...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main Content ────────────────────────────────────── -->
+  <main class="main">
+    <div class="container">
+
+      <!-- Loading state -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <sl-spinner></sl-spinner>
+      </div>
+
+      <!-- Tab Group (hidden until config loads) -->
+      <div id="dashboardContent" style="display: none;">
+        <sl-tab-group id="tabGroup">
+          <sl-tab slot="nav" panel="tools">
+            <sl-icon name="tools" style="margin-right: 0.375rem;"></sl-icon>
+            Tools
+          </sl-tab>
+          <sl-tab slot="nav" panel="security">
+            <sl-icon name="shield-lock" style="margin-right: 0.375rem;"></sl-icon>
+            Security
+          </sl-tab>
+          <sl-tab slot="nav" panel="rate-limits">
+            <sl-icon name="speedometer2" style="margin-right: 0.375rem;"></sl-icon>
+            Rate Limits
+          </sl-tab>
+          <sl-tab slot="nav" panel="audit-log">
+            <sl-icon name="journal-text" style="margin-right: 0.375rem;"></sl-icon>
+            Audit Log
+          </sl-tab>
+
+          <!-- ── Tab 1: Tools ──────────────────────────────── -->
+          <sl-tab-panel name="tools">
+            <!-- Tools tab content (Task 5) -->
+            <div class="tab-placeholder">
+              Tools configuration will appear here.
+            </div>
+          </sl-tab-panel>
+
+          <!-- ── Tab 2: Security ───────────────────────────── -->
+          <sl-tab-panel name="security">
+            <!-- Security tab content (Task 6) -->
+            <div class="tab-placeholder">
+              Security settings will appear here.
+            </div>
+          </sl-tab-panel>
+
+          <!-- ── Tab 3: Rate Limits ────────────────────────── -->
+          <sl-tab-panel name="rate-limits">
+            <!-- Rate Limits tab content (Task 7) -->
+            <div class="tab-placeholder">
+              Rate limit controls will appear here.
+            </div>
+          </sl-tab-panel>
+
+          <!-- ── Tab 4: Audit Log ──────────────────────────── -->
+          <sl-tab-panel name="audit-log">
+            <!-- Audit Log tab content (Task 8) -->
+            <div class="tab-placeholder">
+              Audit log viewer will appear here.
+            </div>
+          </sl-tab-panel>
+        </sl-tab-group>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ── Restart Banner ──────────────────────────────────── -->
+  <div class="restart-banner" id="restartBanner">
+    <sl-alert variant="warning" open>
+      <sl-icon slot="icon" name="exclamation-triangle"></sl-icon>
+      <strong>Restart required</strong> — Save your changes, then restart the MCP server to apply them.
+    </sl-alert>
+  </div>
+
+  <!-- ── Button Bar ──────────────────────────────────────── -->
+  <div class="button-bar">
+    <div class="container">
+      <sl-button variant="default" size="medium" id="btnReset" disabled>
+        <sl-icon slot="prefix" name="arrow-counterclockwise"></sl-icon>
+        Reset to Defaults
+      </sl-button>
+      <sl-button variant="primary" size="medium" id="btnSave" disabled>
+        <sl-icon slot="prefix" name="check-lg"></sl-icon>
+        Save Config
+      </sl-button>
+    </div>
+  </div>
+
+  <!-- ── JavaScript ──────────────────────────────────────── -->
+  <script type="module">
+    // ── Constants ──────────────────────────────────────────
+    const API = '';
+
+    // ── State ─────────────────────────────────────────────
+    const state = {
+      config: null,        // Full config from API
+      dirty: false,        // Whether changes need saving
+      auditOffset: 0,
+      auditLimit: 100,
+      auditToolFilter: '',
+      auditStatusFilter: '',
+      auditSearch: '',
+      auditHours: 24,
+    };
+
+    // Expose state globally for tab modules (Tasks 5-8)
+    window.dashboardState = state;
+
+    // ── DOM Refs ──────────────────────────────────────────
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const dashboardContent = document.getElementById('dashboardContent');
+    const restartBanner = document.getElementById('restartBanner');
+    const btnSave = document.getElementById('btnSave');
+    const btnReset = document.getElementById('btnReset');
+
+    // ── Status Indicator ──────────────────────────────────
+    function setStatus(type, message) {
+      statusDot.className = 'status-dot';
+      if (type === 'loading') statusDot.classList.add('loading');
+      else if (type === 'error') statusDot.classList.add('disconnected');
+      // 'connected' is the default green
+      statusText.textContent = message;
+    }
+
+    // ── Dirty Tracking ────────────────────────────────────
+    function markDirty() {
+      state.dirty = true;
+      btnSave.disabled = false;
+      btnReset.disabled = false;
+    }
+
+    function markClean() {
+      state.dirty = false;
+      btnSave.disabled = true;
+      // Reset button stays enabled if we have a user config
+      btnReset.disabled = !(state.config && state.config._has_user_config);
+    }
+
+    // Expose helpers for tab modules
+    window.dashboardMarkDirty = markDirty;
+    window.dashboardMarkClean = markClean;
+
+    // ── Restart Banner ────────────────────────────────────
+    function showRestartBanner() {
+      restartBanner.classList.add('visible');
+    }
+
+    function hideRestartBanner() {
+      restartBanner.classList.remove('visible');
+    }
+
+    window.dashboardShowRestartBanner = showRestartBanner;
+
+    // ── Load Config ───────────────────────────────────────
+    async function loadConfig() {
+      try {
+        setStatus('loading', 'Loading...');
+        const res = await fetch(`${API}/api/config`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        state.config = await res.json();
+
+        // Show dashboard, hide loading
+        loadingOverlay.style.display = 'none';
+        dashboardContent.style.display = 'block';
+
+        // Update status
+        setStatus('connected', 'Connected');
+
+        // Update reset button state
+        btnReset.disabled = !state.config._has_user_config;
+
+        // Dispatch event so tab modules can populate
+        window.dispatchEvent(new CustomEvent('config-loaded', { detail: state.config }));
+      } catch (err) {
+        console.error('Failed to load config:', err);
+        setStatus('error', 'Connection failed');
+        loadingOverlay.innerHTML = `
+          <div style="text-align: center;">
+            <sl-icon name="exclamation-octagon" style="font-size: 2.5rem; color: var(--danger); margin-bottom: 1rem;"></sl-icon>
+            <p style="margin-bottom: 0.5rem;">Failed to load configuration</p>
+            <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1.5rem;">${err.message}</p>
+            <sl-button variant="primary" size="small" onclick="location.reload()">
+              <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
+              Retry
+            </sl-button>
+          </div>
+        `;
+      }
+    }
+
+    // ── Save Config ───────────────────────────────────────
+    async function saveConfig() {
+      if (!state.dirty || !state.config) return;
+
+      try {
+        btnSave.loading = true;
+        setStatus('loading', 'Saving...');
+
+        // Collect pending changes from tab modules
+        const changes = {};
+        window.dispatchEvent(new CustomEvent('collect-changes', { detail: changes }));
+
+        const res = await fetch(`${API}/api/config`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changes),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        state.config = await res.json();
+
+        markClean();
+        showRestartBanner();
+        setStatus('connected', 'Saved');
+
+        // Notify tab modules
+        window.dispatchEvent(new CustomEvent('config-saved', { detail: state.config }));
+      } catch (err) {
+        console.error('Failed to save config:', err);
+        setStatus('error', 'Save failed');
+      } finally {
+        btnSave.loading = false;
+      }
+    }
+
+    // ── Reset Config ──────────────────────────────────────
+    async function resetConfig() {
+      try {
+        btnReset.loading = true;
+        setStatus('loading', 'Resetting...');
+
+        const res = await fetch(`${API}/api/config/reset`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        state.config = await res.json();
+
+        markClean();
+        hideRestartBanner();
+        setStatus('connected', 'Reset to defaults');
+
+        // Notify tab modules to re-render with defaults
+        window.dispatchEvent(new CustomEvent('config-loaded', { detail: state.config }));
+      } catch (err) {
+        console.error('Failed to reset config:', err);
+        setStatus('error', 'Reset failed');
+      } finally {
+        btnReset.loading = false;
+      }
+    }
+
+    // Expose for tab modules
+    window.dashboardLoadConfig = loadConfig;
+    window.dashboardSaveConfig = saveConfig;
+
+    // ── Event Listeners ───────────────────────────────────
+    btnSave.addEventListener('click', saveConfig);
+
+    btnReset.addEventListener('click', async () => {
+      // Confirmation before reset
+      const confirmed = confirm('Reset all settings to defaults? This cannot be undone.');
+      if (confirmed) await resetConfig();
+    });
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (state.dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    // ── Init ──────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      loadConfig();
+    });
+  </script>
+
+</body>
+</html>
