@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MCP Dashboard — Windows PC Controller</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%233b82f6'><path d='M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z'/><path d='M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.421 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.421-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z'/></svg>" />
 
   <!-- Shoelace -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css" />
@@ -761,6 +762,50 @@
       }
     }
 
+    /* ── Tab Panel Transitions ────────────────────────────── */
+    sl-tab-panel {
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Toast Notifications ──────────────────────────────── */
+    .toast-stack {
+      position: fixed;
+      top: calc(var(--header-height) + 0.75rem);
+      right: 1rem;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    /* ── Reset Confirmation Dialog ────────────────────────── */
+    .reset-dialog::part(panel) {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+    }
+
+    .reset-dialog::part(title) {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .reset-dialog::part(body) {
+      font-size: 0.9375rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .reset-dialog::part(footer) {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
     /* ── Help Popovers ──────────────────────────────────── */
     .help-popover h4 { margin: 0 0 8px; color: #3b82f6; }
     .help-popover p { margin: 4px 0; font-size: 13px; line-height: 1.4; }
@@ -964,6 +1009,18 @@
     </div>
   </main>
 
+  <!-- ── Reset Confirmation Dialog ──────────────────────── -->
+  <sl-dialog label="Reset to Defaults?" class="reset-dialog" id="resetDialog">
+    This will delete your <strong>config.yaml</strong> and revert all settings to their defaults. Any customizations you have made will be lost.
+    <br><br>
+    Are you sure you want to continue?
+    <sl-button slot="footer" variant="default" id="resetDialogCancel">Cancel</sl-button>
+    <sl-button slot="footer" variant="danger" id="resetDialogConfirm">
+      <sl-icon slot="prefix" name="arrow-counterclockwise"></sl-icon>
+      Reset to Defaults
+    </sl-button>
+  </sl-dialog>
+
   <!-- ── Restart Banner ──────────────────────────────────── -->
   <div class="restart-banner" id="restartBanner">
     <sl-alert variant="warning" open>
@@ -1042,6 +1099,34 @@
     window.dashboardMarkDirty = markDirty;
     window.dashboardMarkClean = markClean;
 
+    // ── Toast Notifications ────────────────────────────────
+    /**
+     * Show a toast notification using Shoelace's sl-alert.
+     * @param {string} message - The message to display
+     * @param {'primary'|'success'|'warning'|'danger'} variant - Alert variant
+     * @param {number} duration - Auto-dismiss duration in ms (0 = no auto-dismiss)
+     */
+    function showToast(message, variant = 'primary', duration = 5000) {
+      const alert = document.createElement('sl-alert');
+      alert.variant = variant;
+      alert.closable = true;
+      alert.duration = duration;
+
+      const icon = document.createElement('sl-icon');
+      icon.slot = 'icon';
+      icon.name = variant === 'success' ? 'check2-circle'
+               : variant === 'danger'  ? 'exclamation-octagon'
+               : variant === 'warning' ? 'exclamation-triangle'
+               : 'info-circle';
+      alert.appendChild(icon);
+      alert.appendChild(document.createTextNode(message));
+
+      document.body.appendChild(alert);
+      alert.toast();
+    }
+
+    window.dashboardShowToast = showToast;
+
     // ── Restart Banner ────────────────────────────────────
     function showRestartBanner() {
       restartBanner.classList.add('visible');
@@ -1116,12 +1201,14 @@
         markClean();
         showRestartBanner();
         setStatus('connected', 'Saved');
+        showToast('Config saved! Restart the MCP server to apply changes.', 'success');
 
         // Notify tab modules
         window.dispatchEvent(new CustomEvent('config-saved', { detail: state.config }));
       } catch (err) {
         console.error('Failed to save config:', err);
         setStatus('error', 'Save failed');
+        showToast(`Failed to save config: ${err.message}`, 'danger', 8000);
       } finally {
         btnSave.loading = false;
       }
@@ -1140,12 +1227,14 @@
         markClean();
         hideRestartBanner();
         setStatus('connected', 'Reset to defaults');
+        showToast('All settings have been reset to defaults.', 'success');
 
         // Notify tab modules to re-render with defaults
         window.dispatchEvent(new CustomEvent('config-loaded', { detail: state.config }));
       } catch (err) {
         console.error('Failed to reset config:', err);
         setStatus('error', 'Reset failed');
+        showToast(`Failed to reset config: ${err.message}`, 'danger', 8000);
       } finally {
         btnReset.loading = false;
       }
@@ -1158,10 +1247,22 @@
     // ── Event Listeners ───────────────────────────────────
     btnSave.addEventListener('click', saveConfig);
 
-    btnReset.addEventListener('click', async () => {
-      // Confirmation before reset
-      const confirmed = confirm('Reset all settings to defaults? This cannot be undone.');
-      if (confirmed) await resetConfig();
+    // Reset button opens sl-dialog for confirmation
+    const resetDialog = document.getElementById('resetDialog');
+    const resetDialogCancel = document.getElementById('resetDialogCancel');
+    const resetDialogConfirm = document.getElementById('resetDialogConfirm');
+
+    btnReset.addEventListener('click', () => {
+      resetDialog.show();
+    });
+
+    resetDialogCancel.addEventListener('click', () => {
+      resetDialog.hide();
+    });
+
+    resetDialogConfirm.addEventListener('click', async () => {
+      resetDialog.hide();
+      await resetConfig();
     });
 
     // Warn before leaving with unsaved changes
