@@ -467,17 +467,19 @@
       } catch (err) {
         console.error('Failed to load config:', err);
         setStatus('error', 'Connection failed');
-        loadingOverlay.innerHTML = `
-          <div style="text-align: center;">
-            <sl-icon name="exclamation-octagon" style="font-size: 2.5rem; color: var(--danger); margin-bottom: 1rem;"></sl-icon>
-            <p style="margin-bottom: 0.5rem;">Failed to load configuration</p>
-            <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1.5rem;">${err.message}</p>
-            <sl-button variant="primary" size="small" onclick="location.reload()">
-              <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
-              Retry
-            </sl-button>
-          </div>
+        const errDiv = document.createElement('div');
+        errDiv.style.textAlign = 'center';
+        errDiv.innerHTML = `
+          <sl-icon name="exclamation-octagon" style="font-size: 2.5rem; color: var(--danger); margin-bottom: 1rem;"></sl-icon>
+          <p style="margin-bottom: 0.5rem;">Failed to load configuration</p>
+          <p class="text-muted error-msg" style="font-size: 0.875rem; margin-bottom: 1.5rem;"></p>
+          <sl-button variant="primary" size="small" onclick="location.reload()">
+            <sl-icon slot="prefix" name="arrow-clockwise"></sl-icon>
+            Retry
+          </sl-button>
         `;
+        errDiv.querySelector('.error-msg').textContent = err.message;
+        loadingOverlay.replaceChildren(errDiv);
       }
     }
 
@@ -562,9 +564,8 @@
     });
 
     // ── Init ──────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
-      loadConfig();
-    });
+    // Module scripts are deferred — DOM is already ready when this runs
+    loadConfig();
   </script>
 
 </body>
